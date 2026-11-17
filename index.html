@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Agent Economy | UBC 2026 Market Dashboard</title>
+<style>
+  /* ==========================================================================
+     1. DESIGN TOKENS & SYSTEM THEME (Zero External Dependencies)
+     ========================================================================== */
+  :root {
+    --bg-base: #060d17;
+    --bg-surface: #0d1829;
+    --bg-surface-elevated: #122138;
+    --bg-glass: rgba(13, 24, 41, 0.78);
+    --bg-inset: #081220;
+    --border-hairline: rgba(148, 179, 214, 0.14);
+    --border-strong: rgba(148, 179, 214, 0.28);
+    --border-mint: rgba(94, 228, 189, 0.42);
+    --border-violet: rgba(172, 157, 253, 0.42);
+
+    --ink-primary: #edf4fc;
+    --ink-secondary: #9fb2c7;
+    --ink-muted: #6c829c;
+
+    --accent-mint: #5ee4bd;
+    --accent-mint-dim: rgba(94, 228, 189, 0.14);
+    --accent-blue: #65a8ff;
+    --accent-blue-dim: rgba(101, 168, 255, 0.14);
+    --accent-violet: #ac9dfd;
+    --accent-violet-dim: rgba(172, 157, 253, 0.15);
+    --accent-amber: #ffbf6a;
+    --accent-amber-dim: rgba(255, 191, 106, 0.14);
+    --accent-rose: #ff8297;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-pill: 999px;
+
+    --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.28);
+    --shadow-glow-mint: 0 0 24px rgba(94, 228, 189, 0.12);
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--bg-base);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Ambient Aurora Mesh Background */
+  .ambient-aurora {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .ambient-aurora::before,
+  .ambient-aurora::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    opacity: 0.45;
+    animation: auroraFloat 18s ease-in-out infinite alternate;
+  }
+  .ambient-aurora::before {
+    width: 580px;
+    height: 420px;
+    top: -140px;
+    left: -100px;
+    background: radial-gradient(circle, rgba(24, 139, 141, 0.35), transparent 70%);
+  }
+  .ambient-aurora::after {
+    width: 640px;
+    height: 460px;
+    top: -100px;
+    right: -140px;
+    background: radial-gradient(circle, rgba(108, 86, 194, 0.32), transparent 70%);
+    animation-delay: -9s;
+  }
+
+  @keyframes auroraFloat {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(35px, 25px) scale(1.07); }
+  }
+
+  /* ==========================================================================
+     2. LAYOUT SHELL, HEADER & STICKY GLASSMORPHIC NAVIGATION
+     ========================================================================== */
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 24px 24px 80px;
+  }
+
+  .hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-mint);
+  }
+
+  .hero-title {
+    margin: 8px 0 8px;
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 820;
+    letter-spacing: -0.04em;
+    line-height: 1.06;
+    color: var(--ink-primary);
+  }
+  .hero-title span {
+    background: linear-gradient(120deg, var(--accent-mint), var(--accent-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-subtitle {
+    margin: 0;
+    max-width: 720px;
+    font-size: 14px;
+    color: var(--ink-secondary);
+  }
+
+  .header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-hairline);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--ink-secondary);
+    white-space: nowrap;
+  }
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-mint);
+    box-shadow: 0 0 10px var(--accent-mint);
+    animation: pulseGlow 2.4s infinite ease-in-out;
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.85); }
+  }
+
+  .btn-group-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-surface-elevated);
+    color: var(--ink-primary);
+    font: 650 12px/1 var(--font-sans);
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.18s var(--ease-spring), border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .btn:hover {
+    border-color: var(--accent-mint);
+    color: var(--accent-mint);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow-mint);
+  }
+  .btn:active {
+    transform: translateY(0);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(94, 228, 189, 0.18), rgba(101, 168, 255, 0.16));
+    border-color: var(--border-mint);
+    color: #dffff4;
+  }
+
+  /* Newcomer TL;DR Onboarding Banner */
+  .tldr-banner {
+    background: linear-gradient(135deg, rgba(18, 33, 56, 0.92), rgba(11, 22, 38, 0.96));
+    border: 1px solid var(--border-mint);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+    transition: all 0.28s var(--ease-spring);
+  }
+  .tldr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .tldr-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .tldr-badge {
+    background: var(--accent-mint-dim);
+    color: var(--accent-mint);
+    border: 1px solid var(--border-mint);
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .tldr-heading {
+    font-size: 14px;
+    font-weight: 750;
+    color: var(--ink-primary);
+  }
+  .tldr-body {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-hairline);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    font-size: 12.5px;
+    color: var(--ink-secondary);
+  }
+  .tldr-body.collapsed {
+    display: none;
+  }
+  .tldr-pillar {
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .tldr-pillar strong {
+    display: block;
+    color: var(--ink-primary);
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+
+  /* Sticky Glassmorphic Navigation Bar with Sliding Pill */
+  .nav-wrapper {
+    position: sticky;
+    top: 12px;
+    z-index: 50;
+    margin-bottom: 26px;
+  }
+  .nav-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    background: var(--bg-glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .nav-pill-indicator {
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 6px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(94, 228, 189, 0.2), rgba(101, 168, 255, 0.16));
+    border: 1px solid var(--border-mint);
+    pointer-events: none;
+    transition: transform 0.32s var(--ease-spring), width 0.32s var(--ease-spring);
+    z-index: 0;
+  }
+  .nav-tab {
+    position: relative;
+    z-index: 1;
+    border: 0;
+    background: transparent;
+    color: var(--ink-secondary);
+    font: 650 13px/1.2 var(--font-sans);
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .nav-tab:hover {
+    color: var(--ink-primary);
+  }
+  .nav-tab.active {
+    color: #eafff8;
+  }
+  .nav-num {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--accent-mint);
+    opacity: 0.85;
+  }
+
+  /* ==========================================================================
+     3. VIEW SECTIONS & STAGGERED ENTRANCE ANIMATIONS
+     ========================================================================== */
+  .view-panel {
+    display: none;
+  }
+  .view-panel.active {
+    display: block;
+  }
+
+  .anim-card {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: riseFade 0.48s var(--ease-spring) forwards;
+    animation-delay: calc(var(--stagger, 0) * 55ms);
+  }
+
+  @keyframes riseFade {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ==========================================================================
+     4. CORE COMPONENTS: CARDS, GRIDS, METRICS, BARS & TABLES
+     ========================================================================== */
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 14px;
+    margin: 28px 0 14px;
+    flex-wrap: wrap;
+  }
+  .section-head:first-child {
+    margin-top: 0;
+  }
+  .section-head h2 {
+    margin: 3px 0 0;
+    font-size: clamp(19px, 2.3vw, 25px);
+    font-weight: 780;
+    letter-spacing: -0.03em;
+  }
+  .section-meta {
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .grid-asymmetric {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+    gap: 16px;
+  }
+
+  .card {
+    background: linear-gradient(155deg, var(--bg-surface-elevated), var(--bg-surface));
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.25s ease, transform 0.25s var(--ease-spring);
+    min-width: 0;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+  }
+
+  .kpi-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 148px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 760;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-secondary);
+  }
+  .kpi-value {
+    font-size: clamp(26px, 2.9vw, 38px);
+    font-weight: 820;
+    letter-spacing: -0.045em;
+    line-height: 1.15;
+    margin: 8px 0 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .c-mint { color: var(--accent-mint); }
+  .c-blue { color: var(--accent-blue); }
+  .c-violet { color: var(--accent-violet); }
+  .c-amber { color: var(--accent-amber); }
+
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--ink-secondary);
+  }
+  .kpi-foot {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+
+  /* Callouts & Denominator Guards */
+  .callout-guard {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 191, 106, 0.08);
+    border: 1px solid rgba(255, 191, 106, 0.26);
+    border-left: 3px solid var(--accent-amber);
+    font-size: 12.5px;
+    color: #d9e4f0;
+    margin: 16px 0;
+  }
+  .callout-info {
+    padding: 13px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(101, 168, 255, 0.08);
+    border: 1px solid rgba(101, 168, 255, 0.25);
+    border-left: 3px solid var(--accent-blue);
+    font-size: 12.5px;
+    color: #d9e4f0;
+    margin: 14px 0;
+  }
+
+  /* Links & Pills */
+  .ext-link {
+    color: #8fd6ff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 11.5px;
+    border-bottom: 1px dotted rgba(143, 214, 255, 0.45);
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .ext-link:hover {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 760;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-inset);
+    color: var(--ink-secondary);
+  }
+  .badge-mint {
+    color: var(--accent-mint);
+    border-color: var(--border-mint);
+    background: var(--accent-mint-dim);
+  }
+  .badge-amber {
+    color: var(--accent-amber);
+    border-color: rgba(255, 191, 106, 0.4);
+    background: var(--accent-amber-dim);
+  }
+  .badge-violet {
+    color: var(--accent-violet);
+    border-color: var(--border-violet);
+    background: var(--accent-violet-dim);
+  }
+  .badge-blue {
+    color: var(--accent-blue);
+    border-color: rgba(101, 168, 255, 0.4);
+    background: var(--accent-blue-dim);
+  }
+
+  /* Spring-Animated Progress / Distribution Bars */
+  .bar-track {
+    width: 100%;
+    height: 11px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+  }
+  .bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-mint));
+    transition: width 0.65s var(--ease-spring);
+  }
+  .bar-fill.violet {
+    background: linear-gradient(90deg, #6b5ce7, var(--accent-violet));
+  }
+  .bar-fill.amber {
+    background: linear-gradient(90deg, #d9822b, var(--accent-amber));
+  }
+
+  /* Tables */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    background: var(--bg-inset);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 10.5px;
+    font-weight: 760;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-mint);
+    background: rgba(18, 33, 56, 0.85);
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-hairline);
+    color: var(--ink-primary);
+    vertical-align: top;
+  }
+  tr:last-child td {
+    border-bottom: 0;
+  }
+  tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Form Controls */
+  .control-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .input-field, .select-field {
+    background: var(--bg-inset);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--ink-primary);
+    padding: 9px 12px;
+    font: 500 12.5px/1.2 var(--font-sans);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-field:focus, .select-field:focus {
+    outline: none;
+    border-color: var(--accent-mint);
+    box-shadow: 0 0 0 3px rgba(94, 228, 189, 0.14);
+  }
+  .input-field {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .seg-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+  }
+  .seg-btn {
+    border: 0;
+    background: transparent;
+    color: var(--ink-secondary);
+    padding: 7px 12px;
+    border-radius: 6px;
+    font: 650 12px/1 var(--font-sans);
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+  }
+  .seg-btn:hover {
+    color: var(--ink-primary);
+  }
+  .seg-btn.active, .seg-btn[aria-pressed="true"] {
+    background: var(--bg-surface-elevated);
+    color: var(--accent-mint);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  /* ==========================================================================
+     5. VIEW-SPECIFIC ENHANCEMENTS
+     ========================================================================== */
+  /* Prize Calculator */
+  .prize-hero-box {
+    margin: 16px 0;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, rgba(22, 78, 71, 0.55), rgba(16, 40, 62, 0.75));
+    border: 1px solid var(--border-mint);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .prize-total-num {
+    font-size: clamp(32px, 3.8vw, 46px);
+    font-weight: 850;
+    letter-spacing: -0.04em;
+    color: #baffde;
+    font-variant-numeric: tabular-nums;
+  }
+  .prize-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-hairline);
+    font-size: 12.5px;
+  }
+  .prize-line:last-child { border-bottom: 0; }
+
+  /* Organic Split Stacked Bar */
+  .split-bar {
+    height: 24px;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+    margin: 16px 0 10px;
+  }
+  .split-organic {
+    width: 59.1065%;
+    background: linear-gradient(90deg, #2cb89e, var(--accent-mint));
+    transition: width 0.8s var(--ease-spring);
+  }
+  .split-other {
+    flex: 1;
+    background: repeating-linear-gradient(135deg, #334660, #334660 8px, #233349 8px, #233349 16px);
+  }
+
+  /* Solana vs Arc Chain Cards */
+  .chain-card-sol {
+    border-color: rgba(94, 228, 189, 0.32);
+    background: linear-gradient(155deg, rgba(19, 44, 62, 0.9), var(--bg-surface));
+  }
+  .chain-card-arc {
+    border-color: rgba(172, 157, 253, 0.32);
+    background: linear-gradient(155deg, rgba(31, 29, 64, 0.9), var(--bg-surface));
+  }
+  .mini-stat-box {
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    padding: 12px;
+  }
+  .mini-stat-box strong {
+    display: block;
+    font-size: 22px;
+    font-weight: 820;
+    letter-spacing: -0.03em;
+    margin: 4px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .mini-stat-box small {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-muted);
+    line-height: 1.35;
+  }
+
+  /* Interactive Chart Rows */
+  .comp-row {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr) 95px;
+    gap: 12px;
+    align-items: center;
+    margin: 14px 0;
+  }
+  .comp-track {
+    height: 22px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hairline);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  /* Accordion / Details */
+  details.clean-details {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-hairline);
+  }
+  details.clean-details summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    user-select: none;
+  }
+  details.clean-details summary:hover {
+    color: var(--accent-mint);
+  }
+
+  /* Reading Room Panel */
+  .reading-room {
+    border: 1px solid var(--border-mint);
+    background: linear-gradient(160deg, #102238, #091322);
+    border-radius: var(--radius-lg);
+    padding: 22px;
+    margin-top: 18px;
+  }
+  .reading-notes h4 {
+    margin: 14px 0 4px;
+    font-size: 13.5px;
+    color: var(--accent-mint);
+  }
+  .reading-notes p {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--ink-secondary);
+    max-width: 78ch;
+  }
+
+  /* Toast Feedback */
+  .toast-msg {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    z-index: 100;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-mint);
+    color: var(--ink-primary);
+    padding: 11px 16px;
+    border-radius: var(--radius-md);
+    font-size: 12.5px;
+    font-weight: 650;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s var(--ease-spring);
+  }
+  .toast-msg.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-hairline);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 11.5px;
+    color: var(--ink-muted);
+  }
+
+  /* ==========================================================================
+     6. RESPONSIVE BREAKPOINTS & REDUCED MOTION
+     ========================================================================== */
+  @media (max-width: 980px) {
+    .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-asymmetric, .grid-2 { grid-template-columns: 1fr; }
+    .tldr-body { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 600px) {
+    .shell { padding: 16px 14px 60px; }
+    .hero-header { flex-direction: column; }
+    .header-actions { align-items: flex-start; width: 100%; }
+    .btn-group-row { justify-content: flex-start; }
+    .grid-4, .grid-3 { grid-template-columns: 1fr; }
+    .comp-row { grid-template-columns: 76px minmax(0, 1fr) 82px; gap: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media print {
+    body { background: #ffffff; color: #111827; }
+    .ambient-aurora, .nav-wrapper, .header-actions, .control-bar, .toast-msg { display: none !important; }
+    .view-panel { display: block !important; page-break-before: always; }
+    .view-panel:first-of-type { page-break-before: auto; }
+    .card { background: #ffffff; border: 1px solid #d1d5db; box-shadow: none; color: #111827; }
+    .kpi-value, .c-mint, .c-blue, .c-violet, .c-amber { color: #111827 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="ambient-aurora" aria-hidden="true"></div>
+
+<main class="shell">
+  <!-- ========================================================================
+       HERO HEADER
+       ======================================================================== -->
+  <header class="hero-header">
+    <div>
+      <div class="eyebrow">Market Intelligence · UBC 2026 Research Brief</div>
+      <h1 class="hero-title">Agent Economy. <span>The Market Brief.</span></h1>
+      <p class="hero-subtitle">
+        A structured research snapshot for builders and judges: hackathon rules &amp; cash prizes, observed on-chain machine payments, Solana vs. Circle Arc ecosystem metrics, consumer trust barriers, and sourced failure records.
+      </p>
+    </div>
+    <div class="header-actions">
+      <div class="status-pill"><span class="pulse-dot"></span>SNAPSHOT · NOV 16–17, 2026</div>
+      <div class="btn-group-row">
+        <button class="btn btn-primary" id="exportChainCsvBtn" type="button">↓ Solana vs Arc CSV</button>
+        <button class="btn" id="exportGlobalCsvBtn" type="button">↓ Market Snapshot CSV</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       NEWCOMER ONBOARDING BANNER ("GET THE GIST IMMEDIATELY")
+       ======================================================================== -->
+  <section class="tldr-banner" aria-label="Newcomer Orientation Guide">
+    <div class="tldr-header">
+      <div class="tldr-title-wrap">
+        <span class="tldr-badge">Newcomer Guide · 30-Sec Gist</span>
+        <span class="tldr-heading">AI agents are beginning to pay for APIs and goods—but human trust and spending guardrails lag behind.</span>
+      </div>
+      <button class="btn" id="toggleTldrBtn" type="button" aria-expanded="true">Hide guide</button>
+    </div>
+    <div class="tldr-body" id="tldrBody">
+      <div class="tldr-pillar">
+        <strong>1. What is the "Agent Economy"?</strong>
+        Software agents can now hold wallets or scoped payment tokens and pay per API call (using protocols like <code>x402</code> and <code>MPP</code>). Today, <b>80.8%</b> of labeled on-chain agent payment volume buys AI model inference—not retail shopping.
+      </div>
+      <div class="tldr-pillar">
+        <strong>2. Why is consumer adoption only 11%?</strong>
+        While 300M+ people use AI shopping assistants for research, <b>70%</b> want to review/override purchases before payment, and <b>76%</b> feel uncomfortable with autonomous spending. Winning products enforce hard spending caps and human approvals.
+      </div>
+      <div class="tldr-pillar">
+        <strong>3. How to read this dashboard</strong>
+        Every metric carries its exact timeframe and source. <b>Never add different denominators</b> (e.g., 30-day x402 transfers vs. cumulative volume vs. 2030 McKinsey forecasts, or raw identity mints vs. active agents).
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       STICKY GLASSMORPHIC 5-VIEW NAVIGATION
+       ======================================================================== -->
+  <div class="nav-wrapper">
+    <nav class="nav-bar" id="mainNav" role="tablist" aria-label="Dashboard Views">
+      <div class="nav-pill-indicator" id="navIndicator" aria-hidden="true"></div>
+      <button class="nav-tab active" role="tab" aria-selected="true" data-view="view-brief" type="button">
+        <span class="nav-num">01</span> Executive Brief &amp; Prizes
+      </button>
+      <button class="nav-tab" role="tab" aria-selected="false" data-view="view-flows" type="button">
+        <span class="nav-num">02</span> Market Reality &amp; Money Flows
+      </button>
+      <button class="nav-tab" role="tab" aria-selected="false" data-view="view-chains" type="button">
+        <span class="nav-num">03</span> Chains &amp; Ecosystems (Solana vs Arc)
+      </button>
+      <button class="nav-tab" role="tab" aria-selected="false" data-view="view-trust" type="button">
+        <span class="nav-num">04</span> Trust, Products &amp; Risk Ledger
+      </button>
+      <button class="nav-tab" role="tab" aria-selected="false" data-view="view-lab" type="button">
+        <span class="nav-num">05</span> Idea Lab &amp; Reference Library
+      </button>
+    </nav>
+  </div>
+
+  <!-- ========================================================================
+       VIEW 01: EXECUTIVE BRIEF & HACKATHON PRIZES
+       ======================================================================== -->
+  <section class="view-panel active" id="view-brief" role="tabpanel">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">01 / Hackathon Context &amp; Ground Truth</div>
+        <h2>Build parameters, deadlines &amp; prize mechanics</h2>
+      </div>
+      <span class="section-meta">Source: <a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/" target="_blank" rel="noopener">Official Devpost ↗</a> · Snapshot Nov 16, 2026</span>
+    </div>
+
+    <!-- 4 Top Hackathon KPIs -->
+    <div class="grid-4">
+      <article class="card kpi-card anim-card" style="--stagger:0">
+        <div>
+          <div class="kpi-label">Total Event Prize Pool</div>
+          <div class="kpi-value c-mint" data-count-target="22000" data-prefix="$" data-suffix="+">$22,000+</div>
+          <div class="kpi-sub">Advertised cash awards across tracks &amp; bounties.</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/" target="_blank" rel="noopener">Devpost prize pool ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:1">
+        <div>
+          <div class="kpi-label">Single-Team Theoretical Max</div>
+          <div class="kpi-value c-blue" data-count-target="9000" data-prefix="$">$9,000</div>
+          <div class="kpi-sub">Requires stacking 5 compatible awards; not expected payout.</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/" target="_blank" rel="noopener">Award stacking rules ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:2">
+        <div>
+          <div class="kpi-label">Submission Deadline</div>
+          <div class="kpi-value c-amber">Nov 20</div>
+          <div class="kpi-sub">Friday, 12:00 p.m. CST / 10:00 a.m. PST.</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/rules" target="_blank" rel="noopener">Official schedule ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:3">
+        <div>
+          <div class="kpi-label">In-Person Final Pitches</div>
+          <div class="kpi-value c-violet">Nov 21</div>
+          <div class="kpi-sub">UT Austin; physical attendance required to claim prizes.</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/rules" target="_blank" rel="noopener">Attendance terms ↗</a></div>
+      </article>
+    </div>
+
+    <!-- Market Ground Truth 4-Signal Summary -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Executive Market Signals</div>
+        <h2>Four headline ground truths (distinct denominators)</h2>
+      </div>
+      <span class="section-meta">Quick jump to deep dives below</span>
+    </div>
+
+    <div class="grid-4">
+      <article class="card kpi-card anim-card" style="--stagger:4">
+        <div>
+          <span class="badge badge-mint">Machine Payment Rails</span>
+          <div class="kpi-value c-mint">$1.89M</div>
+          <div class="kpi-sub">Trailing 30-day x402 transfer volume across <b>5.4M</b> settlements.</div>
+        </div>
+        <div class="kpi-foot"><button class="btn" data-jump-view="view-flows" type="button">Explore money flows →</button></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:5">
+        <div>
+          <span class="badge badge-blue">Primary On-Chain Demand</span>
+          <div class="kpi-value c-blue">80.8%</div>
+          <div class="kpi-sub">Share of <i>labeled</i> 30d agent payment volume spent on AI inference.</div>
+        </div>
+        <div class="kpi-foot"><button class="btn" data-jump-view="view-flows" type="button">See category mix →</button></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:6">
+        <div>
+          <span class="badge badge-violet">Chain Activity Gap (30d)</span>
+          <div class="kpi-value c-violet">552K vs 315</div>
+          <div class="kpi-sub">Indexed x402 transfers on Solana vs. Circle Arc in same 30d window.</div>
+        </div>
+        <div class="kpi-foot"><button class="btn" data-jump-view="view-chains" type="button">Compare Solana &amp; Arc →</button></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:7">
+        <div>
+          <span class="badge badge-amber">The Consumer Trust Gap</span>
+          <div class="kpi-value c-amber">11% vs 70%</div>
+          <div class="kpi-sub">Only 11% completed an AI purchase; 70% demand human review/override.</div>
+        </div>
+        <div class="kpi-foot"><button class="btn" data-jump-view="view-trust" type="button">Inspect trust &amp; risks →</button></div>
+      </article>
+    </div>
+
+    <!-- Interactive Prize Stacking Calculator + Rules Checklist -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Interactive Planner</div>
+        <h2>UBC 2026 Prize Stacking Simulator &amp; Rules Checklist</h2>
+      </div>
+      <span class="section-meta">All three main tracks award an identical $2,000 winner prize</span>
+    </div>
+
+    <div class="grid-asymmetric">
+      <article class="card anim-card" style="--stagger:8">
+        <h3 style="margin:0 0 6px;font-size:17px">Interactive Award-Stacking Calculator</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          Select one main track and compatible chain/sponsor awards to model theoretical cash payouts. Solana ($1,500) and Arc ($1,000) awards are mutually exclusive.
+        </p>
+
+        <div class="grid-2" style="gap:10px">
+          <div>
+            <label for="calcTrack" style="display:block;font-size:11px;color:var(--ink-secondary);margin-bottom:4px">Main Track (pick one · $2,000)</label>
+            <select id="calcTrack" class="select-field" style="width:100%">
+              <option value="agent">Agentic Payments &amp; AI ($2,000)</option>
+              <option value="defi">DeFi &amp; Onchain Apps ($2,000)</option>
+              <option value="consumer">Consumer Applications ($2,000)</option>
+            </select>
+          </div>
+          <div>
+            <label for="calcChain" style="display:block;font-size:11px;color:var(--ink-secondary);margin-bottom:4px">Chain Award (pick at most one)</label>
+            <select id="calcChain" class="select-field" style="width:100%">
+              <option value="sol">Best Use of Solana — $1,500</option>
+              <option value="arc">Best Use of Arc — $1,000</option>
+              <option value="none">No chain award — $0</option>
+            </select>
+          </div>
+          <div>
+            <label for="calcOverall" style="display:block;font-size:11px;color:var(--ink-secondary);margin-bottom:4px">Overall Competition Placement</label>
+            <select id="calcOverall" class="select-field" style="width:100%">
+              <option value="2500">1st Place Overall — $2,500</option>
+              <option value="1000">2nd Place Overall — $1,000</option>
+              <option value="500">3rd Place Overall — $500</option>
+              <option value="0">No overall award — $0</option>
+            </select>
+          </div>
+          <div>
+            <label for="calcGemini" style="display:block;font-size:11px;color:var(--ink-secondary);margin-bottom:4px">Gemini Prediction Markets Bounty</label>
+            <select id="calcGemini" class="select-field" style="width:100%">
+              <option value="2500">1st Place Gemini — $2,500</option>
+              <option value="1000">2nd Place Gemini — $1,000</option>
+              <option value="500">3rd Place Gemini — $500</option>
+              <option value="0">No Gemini award — $0</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="calcQuicknode" checked style="width:16px;height:16px;accent-color:var(--accent-mint)"/>
+          Include QuickNode Streams Bounty (+$500 · requires core data integration)
+        </label>
+
+        <div class="prize-hero-box">
+          <div>
+            <div style="font-size:10.5px;font-weight:800;letter-spacing:0.1em;color:var(--accent-mint);text-transform:uppercase">Hypothetical Stacked Cash Total</div>
+            <div style="font-size:11.5px;color:#c3e6dc">Contingent on winning &amp; substantive sponsor integration</div>
+          </div>
+          <div class="prize-total-num" id="calcTotalDisplay">$9,000</div>
+        </div>
+
+        <div id="calcBreakdownList"></div>
+      </article>
+
+      <article class="card anim-card" style="--stagger:9">
+        <h3 style="margin:0 0 10px;font-size:17px">Official Rules &amp; Submission Checklist</h3>
+        <div style="display:grid;gap:10px;font-size:12.5px;color:var(--ink-secondary)">
+          <div style="padding-bottom:8px;border-bottom:1px solid var(--border-hairline)">
+            <strong style="color:var(--ink-primary)">Team Size &amp; Track:</strong> 1–4 builders per team; submit to one main track (Agentic Payments &amp; AI, DeFi &amp; Onchain, or Consumer Applications). Main tracks are chain-agnostic.
+          </div>
+          <div style="padding-bottom:8px;border-bottom:1px solid var(--border-hairline)">
+            <strong style="color:var(--ink-primary)">Originality Window:</strong> Nov 12 kickoff; official rules require code created during the event (excluding pre-Nov-13 codebases). Do not resubmit pre-existing repos.
+          </div>
+          <div style="padding-bottom:8px;border-bottom:1px solid var(--border-hairline)">
+            <strong style="color:var(--ink-primary)">Eligibility Note:</strong> Devpost's event page lists UBC participants, students, and adults of legal majority; rules also mention independent builders. Confirm phrasing with organizers if non-student.
+          </div>
+          <div style="padding-bottom:8px;border-bottom:1px solid var(--border-hairline)">
+            <strong style="color:var(--ink-primary)">Required Deliverables:</strong> Public GitHub repo created during hackathon, working demo, README/architecture doc, 2–3 minute demo video, and Devpost answers.
+          </div>
+          <div style="padding-bottom:8px;border-bottom:1px solid var(--border-hairline)">
+            <strong style="color:var(--ink-primary)">Noncash Sponsor Perks:</strong> ElevenLabs (3 months Scale tier) &amp; Grok Bot (hardware/swag) are separate noncash awards.
+          </div>
+          <div>
+            <strong style="color:var(--ink-primary)">Judging Criteria:</strong> Technical execution, product/UX polish, innovation, real-world impact, and live demo clarity.
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
+          <a class="ext-link" href="https://ubc-hackathon-2026.devpost.com/rules" target="_blank" rel="noopener">Official Devpost Rules ↗</a>
+          <a class="ext-link" href="https://www.universityblockchain.org/programs/hackathon" target="_blank" rel="noopener">UBC Organizer Brief ↗</a>
+        </div>
+      </article>
+    </div>
+
+    <!-- What is Working vs Unproven -->
+    <div class="grid-2" style="margin-top:16px">
+      <article class="card anim-card" style="--stagger:10">
+        <span class="badge badge-mint">Observed Evidence</span>
+        <h3 style="margin:8px 0;font-size:16px">What is demonstrably working today?</h3>
+        <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--ink-secondary);line-height:1.65">
+          <li><b>AI-assisted product discovery:</b> 300M+ consumers use tools like Amazon Rufus for search and comparisons.</li>
+          <li><b>Pay-per-query machine APIs:</b> Observable on-chain micropayments (median $0.010) settle inference and data queries via x402 and MPP.</li>
+          <li><b>Scoped payment credentials:</b> Stripe Link/SPT, Visa TAP, and Mastercard Agent Pay ship tokenization and per-purchase confirmation controls.</li>
+        </ul>
+      </article>
+      <article class="card anim-card" style="--stagger:11">
+        <span class="badge badge-amber">Evidence Gaps</span>
+        <h3 style="margin:8px 0;font-size:16px">What remains unproven or exaggerated?</h3>
+        <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--ink-secondary);line-height:1.65">
+          <li><b>True autonomous agent headcount:</b> Wallet addresses and ERC-8004 identity mints are heavily inflated by scripts and batch minting.</li>
+          <li><b>Autonomous travel/retail checkout:</b> Using AI to plan trips (27% KPMG) is not autonomous ticket booking (66% distrust booking, Expedia).</li>
+          <li><b>Industry-wide loss rates:</b> Incident trackers document real failure modes, not a population-wide failure probability.</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       VIEW 02: MARKET REALITY & MONEY FLOWS
+       ======================================================================== -->
+  <section class="view-panel" id="view-flows" role="tabpanel">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">02 / Observed On-Chain Volume vs. Forecasts</div>
+        <h2>Machine payment pulse &amp; demand breakdown</h2>
+      </div>
+      <span class="section-meta">Sources: x402scan &amp; Visa Onchain Analytics · Snapshot Nov 16, 2026</span>
+    </div>
+
+    <div class="grid-4">
+      <article class="card kpi-card anim-card" style="--stagger:0">
+        <div>
+          <div class="kpi-label">x402 · Trailing 30 Days</div>
+          <div class="kpi-value c-mint">$1.89M</div>
+          <div class="kpi-sub">Transfer volume (x402scan rolling 30d)</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://www.x402scan.com/" target="_blank" rel="noopener">x402scan explorer ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:1">
+        <div>
+          <div class="kpi-label">x402 · Trailing 30 Days</div>
+          <div class="kpi-value c-blue">5.4M</div>
+          <div class="kpi-sub">Settlements / transfers across 33.0K buyer wallets</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://www.x402scan.com/" target="_blank" rel="noopener">x402scan explorer ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:2">
+        <div>
+          <div class="kpi-label">x402 + MPP · Cumulative</div>
+          <div class="kpi-value c-violet">$34.4M</div>
+          <div class="kpi-sub">Organic adjusted volume (out of $58.2M raw)</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://visaonchainanalytics.com/agentic-payments" target="_blank" rel="noopener">Visa Onchain Analytics ↗</a></div>
+      </article>
+
+      <article class="card kpi-card anim-card" style="--stagger:3">
+        <div>
+          <div class="kpi-label">x402 + MPP · Cumulative</div>
+          <div class="kpi-value c-amber">$0.010</div>
+          <div class="kpi-sub">Median transaction size (micro-API scale)</div>
+        </div>
+        <div class="kpi-foot"><a class="ext-link" href="https://visaonchainanalytics.com/agentic-payments" target="_blank" rel="noopener">Visa Onchain Analytics ↗</a></div>
+      </article>
+    </div>
+
+    <div class="callout-guard">
+      <strong>Denominator Guard:</strong> The first two cards measure rolling 30-day <code>x402</code> activity; the last two measure Visa's cumulative cross-protocol (<code>x402 + MPP</code>) dataset. Never sum across providers or equate transferred USDC with net merchant revenue.
+    </div>
+
+    <!-- Organic Filtering + 2030 Forecast Separation -->
+    <div class="grid-2">
+      <article class="card anim-card" style="--stagger:4">
+        <span class="badge badge-mint">Signal Quality Filter</span>
+        <h3 style="margin:8px 0 4px;font-size:17px">Reported Transfers vs. Organic Adjusted Volume</h3>
+        <p style="margin:0;font-size:12.5px;color:var(--ink-secondary)">
+          Visa Onchain Analytics cumulative <code>x402 + MPP</code> (296.5M total transfers). Organic filtering removes identified infrastructure recycling and non-economic transfers.
+        </p>
+
+        <div style="display:flex;justify-content:space-between;margin-top:16px">
+          <div>
+            <div class="kpi-label">Raw Reported Volume</div>
+            <div style="font-size:28px;font-weight:800">$58.2M</div>
+          </div>
+          <div style="text-align:right">
+            <div class="kpi-label">Organic Adjusted</div>
+            <div class="c-mint" style="font-size:28px;font-weight:800">$34.4M</div>
+          </div>
+        </div>
+
+        <div class="split-bar" role="img" aria-label="59.1% organic adjusted volume vs 40.9% excluded">
+          <div class="split-organic"></div>
+          <div class="split-other"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-secondary)">
+          <span><b class="c-mint">59.1%</b> Adjusted organic ($34.4M)</span>
+          <span><b>40.9%</b> Outside adjusted screen ($23.8M)</span>
+        </div>
+
+        <div class="grid-4" style="margin-top:16px;gap:8px">
+          <div class="mini-stat-box"><small>30d Buyer Wallets</small><strong class="c-blue">33.0K</strong></div>
+          <div class="mini-stat-box"><small>30d Seller Wallets</small><strong class="c-violet">15.0K</strong></div>
+          <div class="mini-stat-box"><small>Avg Tx / Buyer</small><strong>~164</strong></div>
+          <div class="mini-stat-box"><small>Mean Transfer</small><strong>~$0.35</strong></div>
+        </div>
+      </article>
+
+      <article class="card anim-card" style="--stagger:5">
+        <span class="badge badge-violet">Scale Separation · Do Not Plot Together</span>
+        <h3 style="margin:8px 0 4px;font-size:17px">Observed On-Chain Rails vs. 2030 Retail Forecast</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          On-chain micropayments ($34.4M) and McKinsey's 2030 retail scenario ($3–5T) measure completely different economic scopes and payment rails.
+        </p>
+
+        <div class="mini-stat-box" style="margin-bottom:12px;border-color:var(--border-mint)">
+          <span class="badge badge-mint">Observed Historical · Selected Crypto Rails</span>
+          <strong class="c-mint" style="font-size:32px;margin-top:8px">$34.4M</strong>
+          <small>Cumulative organic adjusted volume across observed x402 + MPP endpoints.</small>
+        </div>
+
+        <div class="mini-stat-box" style="border-color:var(--border-violet)">
+          <span class="badge badge-violet">Forecast Scenario · All Global Retail Rails</span>
+          <strong class="c-violet" style="font-size:32px;margin-top:8px">$3T – $5T</strong>
+          <small>McKinsey 2030 estimate of annual global consumer commerce orchestrated/influenced by AI agents (including traditional cards &amp; bank rails).</small>
+        </div>
+        <div style="margin-top:10px">
+          <a class="ext-link" href="https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-agentic-commerce-opportunity-how-ai-agents-are-ushering-in-a-new-era-for-consumers-and-merchants" target="_blank" rel="noopener">McKinsey Agentic Commerce Report ↗</a>
+        </div>
+      </article>
+    </div>
+
+    <!-- What Machine Payments Buy (80.8% AI Inference) -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Category Demand Mix</div>
+        <h2>What are machine payments actually buying?</h2>
+      </div>
+      <span class="section-meta">Visa / Allium labeled 30d volume · Unlabeled volume excluded</span>
+    </div>
+
+    <div class="grid-asymmetric">
+      <article class="card anim-card" style="--stagger:6">
+        <h3 style="margin:0 0 6px;font-size:17px">Share of Labeled Payment Volume (Past 30 Days)</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          AI inference accounts for <b>80.8%</b> of labeled agentic payment volume—confirming that current on-chain demand is dominated by machine-to-API compute queries.
+        </p>
+        <div id="demandCategoryBars"></div>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--ink-muted)">
+          Denominator: Visa/Allium-labeled protocol volume only. <a class="ext-link" href="https://www.visaonchainanalytics.com/changelog" target="_blank" rel="noopener">Labeling methodology ↗</a>
+        </p>
+      </article>
+
+      <article class="card anim-card" style="--stagger:7">
+        <h3 style="margin:0 0 10px;font-size:17px">Historical Reference Snapshots</h3>
+        <p style="margin:0 0 12px;font-size:12px;color:var(--ink-secondary)">
+          Distinct reporting cutoffs (not a continuous month-over-month time series).
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Measurement</th><th>Window</th><th>Volume</th><th>Tx Count</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Visa/Artemis x402</td><td>Thru Apr 21, 2026</td><td><b>$15.0M</b></td><td>109.6M</td></tr>
+              <tr><td>Visa/Artemis MPP</td><td>Early Mar 2026</td><td><b>~$25K</b></td><td>~115K</td></tr>
+              <tr><td>x402scan (x402)</td><td>30d to Nov 16</td><td><b>$1.89M</b></td><td>5.4M</td></tr>
+              <tr><td>Visa x402 + MPP</td><td>Cumul. Nov 16</td><td><b>$34.4M</b></td><td>296.5M</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout-info" style="margin-bottom:0">
+          <strong>Builder Takeaway:</strong> Rebuilding a generic inference router competes directly with BlockRun and Venice AI. Higher leverage lies in <b>spending governance, verifiable receipts, and provider quality checks</b>.
+        </div>
+      </article>
+    </div>
+
+    <!-- Inference Seller Landscape -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Supply Side</div>
+        <h2>Inference sellers &amp; x402 payment infrastructure</h2>
+      </div>
+      <span class="section-meta">Verified product documentation · Gross transfers ≠ audited revenue</span>
+    </div>
+
+    <article class="card anim-card" style="--stagger:8">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Provider / Role</th>
+              <th>Technical Stack &amp; Payment Rails</th>
+              <th>Pricing &amp; Public Financial Disclosure</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Venice AI</b><br/><span style="font-size:11px;color:var(--ink-muted)">Inference API seller</span></td>
+              <td>Multi-model text, image, audio &amp; video API; x402 USDC settlement on <b>Base</b>.</td>
+              <td>Usage-based API; Sacra estimates $150M annualized run-rate (Sep 2026, includes subscriptions, not x402-only).</td>
+              <td><a class="ext-link" href="https://venice.ai/blog/venice-now-supports-x402" target="_blank" rel="noopener">Docs ↗</a></td>
+            </tr>
+            <tr>
+              <td><b>BlockRun</b><br/><span style="font-size:11px;color:var(--ink-muted)">Multi-model router</span></td>
+              <td>OpenAI-compatible API, x402 v2 on <b>Base + Solana</b>, Circle Gateway EVM chains, TS/Py/Go SDKs.</td>
+              <td>Upstream token rates + <b>$0.001/request</b> chat fee (5% media/search markup). Live receipts public; net revenue undisclosed.</td>
+              <td><a class="ext-link" href="https://blockrun.ai/docs/x402/endpoints" target="_blank" rel="noopener">Docs ↗</a></td>
+            </tr>
+            <tr>
+              <td><b>Cloudflare AI Gateway</b><br/><span style="font-size:11px;color:var(--ink-muted)">Cloud edge gateway</span></td>
+              <td><b>Beta</b> x402 Machine Payments on selected <code>/ai/run</code> models; US customers, API token + card on file.</td>
+              <td>Consolidated Q3 2026 revenue $782.5M (SEC filing); x402 inference revenue not broken out separately.</td>
+              <td><a class="ext-link" href="https://developers.cloudflare.com/ai-gateway/features/machine-payments/" target="_blank" rel="noopener">Docs ↗</a></td>
+            </tr>
+            <tr>
+              <td><b>Agent402</b><br/><span style="font-size:11px;color:var(--ink-muted)">Tool &amp; model directory</span></td>
+              <td>Paid model and tool endpoints over <b>x402 and MPP</b> on Base and Solana.</td>
+              <td>Endpoint transfer counts tracked on x402scan; verified platform net revenue unavailable.</td>
+              <td><a class="ext-link" href="https://www.x402scan.com/" target="_blank" rel="noopener">Explorer ↗</a></td>
+            </tr>
+            <tr>
+              <td><b>Coinbase x402 + Cloudflare</b><br/><span style="font-size:11px;color:var(--ink-muted)">Protocol &amp; facilitator</span></td>
+              <td>HTTP 402 payment challenge, signed wallet auth, middleware &amp; Agents SDK / MCP integrations.</td>
+              <td>Open payment rail infrastructure; facilitated transfer volume is not facilitator revenue.</td>
+              <td><a class="ext-link" href="https://developers.cloudflare.com/agents/tools/payments/x402/" target="_blank" rel="noopener">SDK ↗</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <!-- ========================================================================
+       VIEW 03: CHAINS & ECOSYSTEMS (SOLANA VS CIRCLE ARC + DEFI)
+       ======================================================================== -->
+  <section class="view-panel" id="view-chains" role="tabpanel">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">03 / Hackathon Chains &amp; Financial Markets</div>
+        <h2>Solana vs. Circle Arc: Agent Adoption &amp; DeFi Ground Truths</h2>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="section-meta">Dataset: <code>agent_adoption_solana_arc_v8.csv</code></span>
+        <button class="btn btn-primary" id="exportChainCsvBtnInline" type="button">↓ Download CSV</button>
+      </div>
+    </div>
+
+    <!-- Side-by-Side Chain Cards from CSV -->
+    <div class="grid-2">
+      <article class="card chain-card-sol anim-card" style="--stagger:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span class="badge badge-mint">SVM · Solana Ecosystem</span>
+          <span style="font-size:11px;color:var(--ink-muted)">Best Use of Solana: <b>$1,500</b></span>
+        </div>
+        <h3 style="margin:8px 0 4px;font-size:24px;letter-spacing:-0.03em">Solana</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          Mature high-throughput machine-payment network with active x402 facilitator settlement and dual native agent registries.
+        </p>
+
+        <div class="grid-2" style="gap:10px">
+          <div class="mini-stat-box">
+            <small>Indexed x402 Transfers (30d)</small>
+            <strong class="c-mint">552,157</strong>
+            <small>Agent GDP (Nov 17 snapshot)</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Gross / Organic 30d USD</small>
+            <strong class="c-mint">$68,756</strong>
+            <small><b>$58,174</b> passes organic screen</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Indexed Seller Addresses (30d)</small>
+            <strong class="c-blue">10,112</strong>
+            <small>Tracked x402 recipient addresses</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Registered Agent Accounts</small>
+            <strong class="c-amber">3,323</strong>
+            <small>1,748 Metaplex + 1,575 SATI (Nov 16)</small>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg-inset);border:1px solid var(--border-hairline);font-size:11.5px;color:var(--ink-secondary)">
+          <b>Publisher Lifetime Counter:</b> Solana Foundation reports <b>66,000,000</b> cumulative x402 transfers &amp; 265K participants (separate coverage from 30d tracker).
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+          <a class="ext-link" href="https://agentgdp.io/chains" target="_blank" rel="noopener">Agent GDP ↗</a>
+          <a class="ext-link" href="https://agenteconomy.to/stats/how-many-ai-agents-are-on-solana" target="_blank" rel="noopener">Registry Census ↗</a>
+          <a class="ext-link" href="https://solana.com/x402" target="_blank" rel="noopener">Solana x402 ↗</a>
+        </div>
+      </article>
+
+      <article class="card chain-card-arc anim-card" style="--stagger:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span class="badge badge-violet">EVM · Circle Agent Stack</span>
+          <span style="font-size:11px;color:var(--ink-muted)">Best Use of Arc: <b>$1,000</b></span>
+        </div>
+        <h3 style="margin:8px 0 4px;font-size:24px;letter-spacing:-0.03em">Circle Arc</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          Dollar-denominated EVM mainnet with native USDC gas, programmable agent spending wallets, and Circle x402 facilitation.
+        </p>
+
+        <div class="grid-2" style="gap:10px">
+          <div class="mini-stat-box">
+            <small>Indexed x402 Transfers (30d)</small>
+            <strong class="c-violet">315</strong>
+            <small>Agent GDP (same 30d window)</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Gross / Organic 30d USD</small>
+            <strong class="c-violet">$34.20</strong>
+            <small><b>$0</b> passes provisional organic screen</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Indexed Seller Addresses (30d)</small>
+            <strong class="c-blue">5</strong>
+            <small>Early tracked x402 cohort</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Indexed ERC-8004 Records</small>
+            <strong class="c-amber">421,582</strong>
+            <small>ChainReport index (bulk-mint skewed)</small>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg-inset);border:1px solid var(--border-hairline);font-size:11.5px;color:var(--ink-secondary)">
+          <b>Shipped Tooling:</b> Circle Agent Wallets support per-payment &amp; daily/weekly/monthly USDC spend caps, nanopayments, and service marketplace APIs.
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+          <a class="ext-link" href="https://agentgdp.io/chains" target="_blank" rel="noopener">Agent GDP ↗</a>
+          <a class="ext-link" href="https://chainreport.co/agent-economy/" target="_blank" rel="noopener">ChainReport Index ↗</a>
+          <a class="ext-link" href="https://agents.circle.com/" target="_blank" rel="noopener">Circle Agents ↗</a>
+        </div>
+      </article>
+    </div>
+
+    <div class="callout-guard">
+      <strong>Critical Registry Warning:</strong> Solana's <b>3,323</b> accounts (Metaplex + SATI) and Arc's <b>421,582</b> ERC-8004 records measure <i>minted identity cards</i> from different indexers—not live autonomous agents. ERC-8004 registries experience heavy batch minting (~2.42M globally across EVM chains). Always separate identity mints from actual paid transactions.
+    </div>
+
+    <!-- Interactive Linear vs Log Comparison Chart -->
+    <article class="card anim-card" style="--stagger:2">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+          <h3 style="margin:0 0 4px;font-size:17px">Interactive Chain Metric Comparison (CSV Explorer)</h3>
+          <p style="margin:0;font-size:12.5px;color:var(--ink-secondary)">
+            Toggle metrics from <code>agent_adoption_solana_arc_v8.csv</code> and switch between Logarithmic and Linear scales.
+          </p>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <div class="seg-group" id="chainMetricBtns" role="group" aria-label="Select Chain Metric">
+            <button class="seg-btn active" type="button" data-metric="tx">30d Transfers</button>
+            <button class="seg-btn" type="button" data-metric="gross">Gross USD</button>
+            <button class="seg-btn" type="button" data-metric="organic">Organic USD</button>
+            <button class="seg-btn" type="button" data-metric="sellers">30d Sellers</button>
+            <button class="seg-btn" type="button" data-metric="registries">Identity Records</button>
+          </div>
+          <div class="seg-group" id="chainScaleBtns" role="group" aria-label="Select Scale">
+            <button class="seg-btn active" type="button" data-scale="log">Log Scale</button>
+            <button class="seg-btn" type="button" data-scale="linear">Linear Scale</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="chainComparisonBars" style="margin:18px 0 12px"></div>
+      <p id="chainComparisonNote" style="margin:0;font-size:12px;color:var(--ink-secondary)"></p>
+    </article>
+
+    <!-- DeFi & Prediction Markets Ground Truths -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Financial Markets Ground Truth</div>
+        <h2>Gemini Predictions · Solana DeFi · Circle Arc DeFi</h2>
+      </div>
+      <div class="seg-group" id="defiFilterBtns" role="group" aria-label="Filter Financial Markets">
+        <button class="seg-btn active" type="button" data-eco="all">All Markets</button>
+        <button class="seg-btn" type="button" data-eco="gemini">Gemini Predictions</button>
+        <button class="seg-btn" type="button" data-eco="solana">Solana DeFi</button>
+        <button class="seg-btn" type="button" data-eco="arc">Circle Arc DeFi</button>
+      </div>
+    </div>
+
+    <div class="grid-3" id="defiCardsGrid">
+      <!-- Gemini -->
+      <article class="card anim-card" data-eco-card="gemini" style="--stagger:3">
+        <span class="badge badge-blue">Gemini Predictions · 30d</span>
+        <div class="kpi-value c-blue" style="margin-top:10px">$43M</div>
+        <div class="kpi-sub" style="margin-bottom:12px">Contract face-value volume (Oct 17–Nov 15, 2026; $1 settlement contracts ≠ buyer cash spend).</div>
+        <div id="geminiBars"></div>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--ink-muted)">
+          Exchange API, not a Solana program. <a class="ext-link" href="https://defirate.com/prediction-markets/volume/gemini/" target="_blank" rel="noopener">DeFi Rate ↗</a> · <a class="ext-link" href="https://developer.gemini.com/prediction-markets-spec/volume" target="_blank" rel="noopener">Gemini API ↗</a>
+        </p>
+      </article>
+
+      <!-- Solana DeFi -->
+      <article class="card anim-card" data-eco-card="solana" style="--stagger:4">
+        <span class="badge badge-mint">Solana DeFi · Nov 16 Snapshot</span>
+        <div class="kpi-value c-mint" style="margin-top:10px">$4.682B</div>
+        <div class="kpi-sub" style="margin-bottom:12px">DeFi TVL · <b>$14.076B</b> stablecoins · <b>$1.207B</b> 24h DEX volume · <b>$470.22M</b> 24h perps.</div>
+        <div id="solanaDefiBars"></div>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--ink-muted)">
+          Sector TVLs overlap via liquid staking rehypothecation; do not sum. <a class="ext-link" href="https://defillama.com/chain/solana" target="_blank" rel="noopener">DeFiLlama ↗</a>
+        </p>
+      </article>
+
+      <!-- Arc DeFi -->
+      <article class="card anim-card" data-eco-card="arc" style="--stagger:5">
+        <span class="badge badge-violet">Circle Arc DeFi · Nov 17 Snapshot</span>
+        <div class="kpi-value c-violet" style="margin-top:10px">$605.81M</div>
+        <div class="kpi-sub" style="margin-bottom:12px">DeFi TVL · <b>$1.54B</b> stablecoins (<b>99.28%</b> USDC) · <b>$186.05M</b> 24h perps · <b>$19.67M</b> DEX.</div>
+        <div id="arcDefiBars"></div>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--ink-muted)">
+          Lending led by Morpho (~$300.05M) &amp; Aave V4 (~$183.18M). <a class="ext-link" href="https://defillama.com/chain/arc" target="_blank" rel="noopener">DeFiLlama ↗</a>
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       VIEW 04: TRUST, PRODUCTS & RISK LEDGER
+       ======================================================================== -->
+  <section class="view-panel" id="view-trust" role="tabpanel">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">04 / Consumer Barriers, Shipped Products &amp; Failure Ledger</div>
+        <h2>Why adoption bottlenecks at checkout—and how systems fail</h2>
+      </div>
+      <span class="section-meta">Separate survey samples · 17 shipped products · 26 sourced incident records</span>
+    </div>
+
+    <!-- Consumer Survey Barriers -->
+    <div class="grid-2">
+      <article class="card anim-card" style="--stagger:0">
+        <span class="badge badge-amber">Consumer Friction · 2026 Surveys</span>
+        <h3 style="margin:8px 0 4px;font-size:17px">The Authorization Bottleneck</h3>
+        <p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-secondary)">
+          Consumers embrace AI for product discovery (81% of observed HUMAN agent traffic) but reject unreviewed spending (2.4% checkout endpoint share).
+        </p>
+        <div id="surveyBarrierBars"></div>
+        <p style="margin:12px 0 0;font-size:11px;color:var(--ink-muted)">
+          Distinct surveys (NMI n=1,000; Ipsos n=1,120; Visa/Harris; PYMNTS n=2,298). Do not sum percentages across studies.
+        </p>
+      </article>
+
+      <article class="card anim-card" style="--stagger:1">
+        <span class="badge badge-blue">Travel &amp; Commerce Reality Check</span>
+        <h3 style="margin:8px 0 10px;font-size:17px">Planning with AI ≠ Autonomous Purchasing</h3>
+        <div class="grid-2" style="gap:10px">
+          <div class="mini-stat-box">
+            <small>AI Used for Trip Planning</small>
+            <strong class="c-mint">14% → 27%</strong>
+            <small>KPMG Summer 2026 retrospective recall (not ticket booking).</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Distrust AI to Book/Buy</small>
+            <strong class="c-amber">66%</strong>
+            <small>Expedia/YouGov (n=5,700+); 68% prefer trusted travel brands.</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>Merchant Readiness</small>
+            <strong class="c-blue">19%</strong>
+            <small>MRC 2026 merchants with active agent acceptance plans in place.</small>
+          </div>
+          <div class="mini-stat-box">
+            <small>In-Chat Conversion Gap</small>
+            <strong class="c-violet">~1/3×</strong>
+            <small>Walmart reported in-chatbot checkout converted at ~1/3 standard web rate.</small>
+          </div>
+        </div>
+        <div class="callout-info" style="margin-bottom:0">
+          <strong>Architectural Takeaway:</strong> Standards like <b>Google AP2</b> and <b>Mastercard Verifiable Intent</b> separate model reasoning from deterministic, user-signed spending mandates.
+        </div>
+      </article>
+    </div>
+
+    <!-- Shipped Products & Infrastructure Explorer -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Competitive Inventory</div>
+        <h2>Shipped Consumer Apps, Payment Rails &amp; Identity Stack</h2>
+      </div>
+      <span class="section-meta" id="productFilterCount">Showing 17 offerings</span>
+    </div>
+
+    <article class="card anim-card" style="--stagger:2">
+      <div class="control-bar">
+        <select id="prodCategoryFilter" class="select-field" aria-label="Filter by category">
+          <option value="all">All Categories (17)</option>
+          <option value="consumer">Consumer Shopping Apps</option>
+          <option value="infrastructure">Payment &amp; Wallet Rails</option>
+          <option value="identity">Agent Identity (KYA / TAP)</option>
+          <option value="fraud">Merchant Fraud &amp; Bot Defense</option>
+          <option value="b2b">Institutional / B2B Pilots</option>
+        </select>
+        <select id="prodStageFilter" class="select-field" aria-label="Filter by stage">
+          <option value="all">All Availability Stages</option>
+          <option value="shipped">Shipped / Public</option>
+          <option value="limited">Limited / Early Access</option>
+          <option value="pilot">Live Pilot</option>
+        </select>
+        <input type="search" id="prodSearchInput" class="input-field" placeholder="Search OpenAI, Stripe, Visa, Skyfire, Crossmint, controls..."/>
+        <button class="btn" id="exportProductsCsvBtn" type="button">↓ Products CSV</button>
+      </div>
+      <div class="grid-3" id="productsGrid"></div>
+    </article>
+
+    <!-- Sourced Incident & Failure Ledger -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Empirical Failure Modes</div>
+        <h2>Documented Agent Payment Incidents, Disputes &amp; Security Tests</h2>
+      </div>
+      <span class="section-meta" id="incidentFilterCount">Showing 26 records</span>
+    </div>
+
+    <article class="card anim-card" style="--stagger:3">
+      <div class="control-bar">
+        <input type="search" id="incSearchInput" class="input-field" placeholder="Search incidents, amounts, Mandiant, Bankrbot, Operator, controls..."/>
+        <select id="incStatusFilter" class="select-field" aria-label="Filter by evidence status">
+          <option value="all">All Evidence Classes (26)</option>
+          <option value="real">Real-World / Operational Reports</option>
+          <option value="test">Controlled Experiments &amp; Security Tests</option>
+        </select>
+        <select id="incModeFilter" class="select-field" aria-label="Filter by failure mode">
+          <option value="all">All Failure Mechanisms</option>
+          <option value="unauthorized">Unauthorized Execution</option>
+          <option value="conditional">Failed Preconditions</option>
+          <option value="injection">Prompt Injection / Transfer</option>
+          <option value="overspend">Unbounded Resource Cost</option>
+          <option value="misrepresentation">Wrong Terms / Promises</option>
+          <option value="automation">Unsafe Platform Automation</option>
+          <option value="experiment">Controlled Retail Experiment</option>
+          <option value="security_demo">Security / Credential Exposure</option>
+        </select>
+        <button class="btn" id="exportIncidentsCsvBtn" type="button">↓ Incidents CSV</button>
+      </div>
+      <div class="grid-2" id="incidentsGrid"></div>
+    </article>
+
+    <!-- Deployable Controls & Jev Typed Governance -->
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Control Engineering</div>
+        <h2>Deployable Guardrails &amp; Role of Typed Models (Jev)</h2>
+      </div>
+      <span class="section-meta">Deterministic policy enforcement must sit outside the LLM prompt</span>
+    </div>
+
+    <div class="grid-2">
+      <article class="card anim-card" style="--stagger:4">
+        <h3 style="margin:0 0 8px;font-size:16px">5 Failure Classes &amp; Where Enforcement Must Live</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Failure Class</th><th>Enforceable Control</th><th>Enforcement Layer</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>1. Unauthorized Payment</b></td><td>Signed per-item checkout approval; merchant &amp; exact amount binding.</td><td>Trusted UI + Payment Processor</td></tr>
+              <tr><td><b>2. Conditional Failure</b></td><td>Query machine-readable refund API state immediately before execution.</td><td>Deterministic State Machine</td></tr>
+              <tr><td><b>3. Prompt Injection</b></td><td>Untrusted web/social text cannot trigger transfers; recipient allowlists &amp; caps.</td><td>Smart-Account Policy / Sandbox</td></tr>
+              <tr><td><b>4. Runaway API Loop</b></td><td>Hard per-task spend ceilings, velocity rate limits, and circuit breakers.</td><td>API Gateway / Billing Proxy</td></tr>
+              <tr><td><b>5. False Policy Promises</b></td><td>Bind quotes to authoritative catalog/policy IDs; never fabricate refunds.</td><td>System-of-Record API</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card anim-card" style="--stagger:5">
+        <h3 style="margin:0 0 8px;font-size:16px">Probabilistic Risk Classifiers (e.g., Jev) vs. Hard Caps</h3>
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--ink-secondary)">
+          TypeSafe AI's <b>Jev</b> constrains model output into typed shapes (<code>Choice</code>, <code>Score</code>, <code>Noul</code>) with token probabilities—useful for flagging ambiguous terms or risky intent.
+        </p>
+        <div class="mini-stat-box" style="margin-bottom:10px">
+          <strong style="font-size:13px;color:var(--accent-mint)">What Typed Models Do Well</strong>
+          <small>Pre-screen unstructured merchant terms ("Is this nonrefundable?") and route low-confidence actions to human review.</small>
+        </div>
+        <div class="mini-stat-box" style="margin-bottom:10px">
+          <strong style="font-size:13px;color:var(--accent-amber)">What Typed Models Cannot Guarantee</strong>
+          <small>Schema validity is not semantic truth. A deterministic verifier (integer minor-unit caps, merchant allowlists, expiry timestamps) must gate fund release.</small>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a class="ext-link" href="https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md" target="_blank" rel="noopener">Google AP2 Mandate Spec ↗</a>
+          <a class="ext-link" href="https://arxiv.org/abs/2609.37647" target="_blank" rel="noopener">Jev 37-Dataset Eval ↗</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ========================================================================
+       VIEW 05: IDEA LAB & REFERENCE LIBRARY
+       ======================================================================== -->
+  <section class="view-panel" id="view-lab" role="tabpanel">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">05 / Builder Hypotheses &amp; Primary Sources</div>
+        <h2>Hackathon Idea Lab (Lens-Ranked)</h2>
+      </div>
+      <div class="seg-group" id="ideaLensBtns" role="group" aria-label="Rank Ideas By Lens">
+        <button class="seg-btn active" type="button" data-lens="speed">Fast Demo</button>
+        <button class="seg-btn" type="button" data-lens="demand">Market Evidence</button>
+        <button class="seg-btn" type="button" data-lens="institution">Institutional Fit</button>
+        <button class="seg-btn" type="button" data-lens="distinct">Novelty</button>
+      </div>
+    </div>
+
+    <div class="grid-3" id="ideaLabGrid"></div>
+
+    <!-- Searchable Reference Library & In-Page Reading Room -->
+    <div class="section-head" style="margin-top:34px">
+      <div>
+        <div class="eyebrow">Primary Documentation &amp; Papers</div>
+        <h2>Reference Library &amp; Study Notes Reader</h2>
+      </div>
+      <span class="section-meta" id="refFilterCount">Showing 22 primary references</span>
+    </div>
+
+    <article class="card anim-card" style="--stagger:4">
+      <div class="control-bar">
+        <input type="search" id="refSearchInput" class="input-field" placeholder="Search papers, Visa, Solana, Arc, Gemini, DeFi, rules..."/>
+        <select id="refKindFilter" class="select-field" aria-label="Filter reference type">
+          <option value="all">All Reference Types</option>
+          <option value="paper">Academic &amp; Working Papers</option>
+          <option value="metrics">Market &amp; Chain Metrics</option>
+          <option value="api">APIs &amp; Protocol Specs</option>
+          <option value="policy">Hackathon Rules &amp; Governance</option>
+        </select>
+      </div>
+      <div class="grid-3" id="referenceCardsGrid"></div>
+
+      <!-- Inline Study Notes Reader -->
+      <div class="reading-room" id="readingRoomPanel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <span class="badge badge-mint">In-Page Study Notes Reader</span>
+            <h3 id="readerTitle" style="margin:6px 0 2px;font-size:18px">Select any reference card above to inspect study notes</h3>
+            <div id="readerMeta" style="font-size:12px;color:var(--ink-muted)">Authored research summaries with direct links to original papers, API specs, and datasets.</div>
+          </div>
+          <a class="btn btn-primary" id="readerExtBtn" href="https://ubc-hackathon-2026.devpost.com/" target="_blank" rel="noopener">Open Original Source ↗</a>
+        </div>
+        <div class="reading-notes" id="readerBody" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-hairline)">
+          <p>Click <b>"Read study notes"</b> on any reference card above to view structured takeaways, methodological caveats, and hackathon applications right inside this view.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- Methodology & Caveats -->
+    <article class="card anim-card" style="--stagger:5;margin-top:16px">
+      <h3 style="margin:0 0 10px;font-size:16px">Snapshot Methodology &amp; Data Hygiene Rules</h3>
+      <div class="grid-3" style="font-size:12px;color:var(--ink-secondary)">
+        <div><strong style="color:var(--ink-primary)">1. Static Reproducible Snapshot:</strong> Captured Nov 16–17, 2026 with zero external network calls so all charts remain deterministic offline.</div>
+        <div><strong style="color:var(--ink-primary)">2. Non-Additive Denominators:</strong> Never sum overlapping trackers (Visa, x402scan, Agent GDP) or combine DeFi TVL with trading volume.</div>
+        <div><strong style="color:var(--ink-primary)">3. Volume ≠ Revenue:</strong> On-chain stablecoin transfers include infrastructure routing and do not equal audited merchant net sales.</div>
+      </div>
+    </article>
+  </section>
+
+  <footer class="footer">
+    <span>Agent Economy | UBC 2026 Market Dashboard · Pure HTML/CSS/JS Zero-Dependency Edition</span>
+    <span>Data Snapshot: November 16–17, 2026 · Curated Research Brief</span>
+  </footer>
+</main>
+
+<div class="toast-msg" id="toastBanner" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ==========================================================================
+     1. STRUCTURED DATASETS (Including Complete agent_adoption_solana_arc_v8.csv)
+     ========================================================================== */
+  const CHAIN_ADOPTION_CSV_ROWS = [
+    ["chain", "metric", "value", "unit", "window", "source_name", "source_url", "caveat"],
+    ["Solana", "x402 indexed payment transfers", "552157", "transfers", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Indexed facilitator transfers; not unique AI agents"],
+    ["Arc", "x402 indexed payment transfers", "315", "transfers", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Indexed facilitator transfers; same tracker and window"],
+    ["Solana", "x402 gross value", "68756", "USD", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Tracker coverage only; not chain-wide stablecoin transfers"],
+    ["Arc", "x402 gross value", "34.2", "USD", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Tracker coverage only"],
+    ["Solana", "x402 filtered organic value", "58174", "USD", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Preliminary organic screen; not audited revenue"],
+    ["Arc", "x402 filtered organic value", "0", "USD", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Zero in preliminary screen does not prove zero commerce"],
+    ["Solana", "x402 indexed sellers", "10112", "addresses", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Recipient addresses; not unique active merchants"],
+    ["Arc", "x402 indexed sellers", "5", "addresses", "last 30 days (Nov 17 2026)", "Agent GDP", "https://agentgdp.io/chains", "Small x402 indexed cohort"],
+    ["Solana", "Registered agent accounts (Metaplex + SATI)", "3323", "accounts", "cumulative as of Nov 16 2026", "agent economy", "https://agenteconomy.to/stats/how-many-ai-agents-are-on-solana", "1,748 Metaplex + 1,575 SATI; registries can overlap"],
+    ["Arc", "Indexed ERC-8004 records", "421582", "records", "cumulative indexed Nov 17 2026", "ChainReport / 8004scan-derived", "https://chainreport.co/agent-economy/", "Third-party registry index; batch minting inflates count"],
+    ["Solana", "Publisher lifetime x402 transfers", "66000000", "transfers", "lifetime as viewed Nov 17 2026", "Solana Foundation", "https://solana.com/x402", "Different coverage from Agent GDP; not unique agents"]
+  ];
+
+  const DEMAND_CATEGORIES = [
+    ["AI inference", 80.8, "linear-gradient(90deg, #2cb89e, #5ee4bd)"],
+    ["Gaming", 7.9, "linear-gradient(90deg, #3b82f6, #65a8ff)"],
+    ["Data", 6.3, "linear-gradient(90deg, #7c3aed, #ac9dfd)"],
+    ["Payments", 1.9, "linear-gradient(90deg, #d97706, #ffbf6a)"],
+    ["Images", 1.4, "linear-gradient(90deg, #0891b2, #6ad4ed)"],
+    ["Audio", 0.5, "linear-gradient(90deg, #db2777, #ee8aad)"],
+    ["Vertical marketplaces", 0.5, "linear-gradient(90deg, #8b5cf6, #cfb7ff)"],
+    ["Social & Comms & Video", 0.6, "linear-gradient(90deg, #64748b, #94a3b8)"]
+  ];
+
+  const DEFI_BREAKDOWNS = {
+    gemini: [
+      ["Sports contracts", 74.3, "$32.0M (74.3%)"],
+      ["Crypto outcomes", 21.0, "$9.0M (21.0%)"],
+      ["Politics", 4.2, "$1.8M (4.2%)"],
+      ["Other categories", 0.5, "~$0.2M (0.5%)"]
+    ],
+    solana: [
+      ["Liquid staking", 4820, "$4.82B"],
+      ["Lending", 2290, "$2.29B"],
+      ["DEXs", 1780, "$1.78B"],
+      ["Derivatives", 629.7, "$630M"],
+      ["RWA & Risk curation", 1095.8, "$1.10B"]
+    ],
+    arc: [
+      ["Lending (Morpho + Aave V4)", 482.82, "$482.82M"],
+      ["Risk curation", 174, "~$174M"],
+      ["Derivatives", 93.3, "~$93M"],
+      ["DEXs", 20.1, "~$20M"]
+    ]
+  };
+
+  const SURVEY_BARRIERS = [
+    ["Uncomfortable with autonomous AI purchases", 76, "NMI US adults (n=1,000)", "https://www.nmi.com/about-us/news/nmi-research-consumers-want-ai-to-help-them-shop-not-control-their-spending/"],
+    ["Want human review or override before payment", 70, "NMI US adults (n=1,000)", "https://www.nmi.com/about-us/news/nmi-research-consumers-want-ai-to-help-them-shop-not-control-their-spending/"],
+    ["Worry AI agent will overspend budget", 60, "NMI US adults (n=1,000)", "https://www.nmi.com/about-us/news/nmi-research-consumers-want-ai-to-help-them-shop-not-control-their-spending/"],
+    ["Would never link payment details to an AI agent", 41, "Ipsos US adults (n=1,120)", "https://www.ipsos.com/sites/default/files/documents/2026-10/What-The-Future-Shopping.pdf"],
+    ["Trust GenAI to handle a payment transaction", 23, "Visa Trust Index / Harris Poll", "https://corporate.visa.com/en/sites/visa-perspectives/newsroom/visa-trust-index-consumer-insights-into-ai-shopping-payments.html"],
+    ["Have completed an AI-mediated purchase", 11, "NMI US adults (n=1,000)", "https://www.nmi.com/about-us/news/nmi-research-consumers-want-ai-to-help-them-shop-not-control-their-spending/"],
+    ["Comfortable with fully automated $300 purchase", 6, "PYMNTS / Visa Acceptance (n=2,298)", "https://www.visaacceptance.com/content/dam/documents/campaign/shopping-index/2026-global-digital-shopping-index-united-states-edition.pdf"]
+  ];
+
+  const SHIPPED_PRODUCTS = [
+    { name: "ChatGPT Wallet (dots)", firm: "OpenAI", segment: "consumer", stage: "limited", started: "Nov 13, 2026", adoption: "Limited U.S. Pro rollout; wallet users & GMV undisclosed (1.2B weekly ChatGPT users is parent reach).", controls: "User reviews merchant, items, amount & card; biometric confirmation per purchase; raw card hidden.", challenge: "Merchant bot blocks & risk declines; per-purchase human sign-off required.", url: "https://openai.com/index/introducing-chatgpt-wallet/" },
+    { name: "Amazon Rufus / Buy for Me", firm: "Amazon", segment: "consumer", stage: "shipped", started: "2025–2026", adoption: "300M+ Rufus shoppers in 2025 (~$12B annualized incremental sales); >500K Buy for Me items.", controls: "In-app assisted checkout coordinated by Amazon across external merchant sites.", challenge: "Merchants reported unapproved product listings & opt-out friction.", url: "https://ir.aboutamazon.com/news-release/news-release-details/2026/Amazon-com-Announces-Fourth-Quarter-Results/" },
+    { name: "Meta Muse + Stripe Link", firm: "Meta / Stripe", segment: "consumer", stage: "shipped", started: "Sep 8, 2026", adoption: "U.S. rollout; Muse order volume undisclosed (300M+ Link users is Stripe parent reach).", controls: "Secure VM + Sentinel approval agent; single-use scoped virtual card; signed user approval.", challenge: "Amazon blocked Muse purchasing in Sep 2026 over unauthorized storefront automation.", url: "https://about.fb.com/news/2026/09/introducing-muse-personal-ai-agent/" },
+    { name: "Google AI Mode / UCP Checkout", firm: "Google", segment: "consumer", stage: "limited", started: "2026", adoption: "Early access with selected Merchant Center partners; UCP GMV not disclosed.", controls: "Universal Commerce Protocol (UCP); merchant remains seller of record; Google Pay confirmation.", challenge: "Merchant feed onboarding & limited geographic/catalog rollout.", url: "https://developers.google.com/universal-commerce-protocol" },
+    { name: "Perplexity Shopping / Comet", firm: "Perplexity", segment: "consumer", stage: "shipped", started: "2024–2026", adoption: "Purchase counts undisclosed; user usage skews heavily toward price comparison & discovery.", controls: "Consumer-initiated Buy with Pro / Comet browser checkout flows.", challenge: "Marketplace access litigation (Amazon) & purchase transparency concerns.", url: "https://www.retaildive.com/news/amazon-meta-muse-ai-agent-shopping-experience/831018/" },
+    { name: "Link Wallet for Agents", firm: "Stripe", segment: "infrastructure", stage: "shipped", started: "2026", adoption: "Stripe reports agent purchases via Link grew 38× MoM by Sep 29, 2026 (base undisclosed).", controls: "Credential vault, single-use virtual cards, revocable Financial Connections bank data.", challenge: "Merchant checkout compatibility & bot-filtering blocks.", url: "https://stripe.com/blog/helping-personal-agents-shop-more-intelligently-and-reliably-with-link" },
+    { name: "Shared Payment Tokens (SPTs)", firm: "Stripe", segment: "infrastructure", stage: "shipped", started: "2025–2026", adoption: "Adopted by Etsy and URBN; standalone SPT volume undisclosed.", controls: "Permissioned scoped payment tokens so agents never touch raw card PANs.", challenge: "Tokenization alone does not prove semantic user intent.", url: "https://stripe.com/blog/supporting-additional-payment-methods-for-agentic-commerce" },
+    { name: "Trusted Agent Protocol (TAP)", firm: "Visa", segment: "identity", stage: "shipped", started: "Oct 2025", adoption: "Public RFC 9421 spec; 150+ issuers testing agentic readiness.", controls: "Cryptographic HTTP message signatures proving verified agent identity & time-bound intent.", challenge: "Authenticates the agent service, not granular user approval of specific line items.", url: "https://developer.visa.com/docs/trusted-agent-protocol" },
+    { name: "Agent Pay + Verifiable Intent", firm: "Mastercard", segment: "infrastructure", stage: "pilot", started: "2025–2026", adoption: "Live authenticated pilots with ING/Worldline and Moldova banks; U.S. trust-scoring tests.", controls: "Agentic payment tokens paired with cryptographic proof of consumer authorization.", challenge: "Early pilot stage; broad merchant enablement still rolling out.", url: "https://www.mastercard.com/us/en/news-and-trends/press/2026/september/new-trust-and-intelligence-services.html" },
+    { name: "KYA / KYAPay Agent Checkout", firm: "Skyfire", segment: "identity", stage: "shipped", started: "Jun 2025", adoption: "Akamai case study reports 2.5M KYA-powered interactions at one financial data provider.", controls: "KYC/KYB-verified operator linked to signed JWT KYA+Pay tokens.", challenge: "Operator identity does not prevent an agent from misinterpreting user instructions.", url: "https://kyapay.org/whitepaper" },
+    { name: "Agent Commerce Toolkit", firm: "Crossmint", segment: "infrastructure", stage: "shipped", started: "Oct 2026", adoption: "Self-service developer toolkit live Oct 2026; transaction count undisclosed.", controls: "Card vault, EVM/Solana wallets, x402/MPP support, spending caps, allowlists & expirations.", challenge: "Developers must verify on-chain vs. off-chain backend policy enforcement.", url: "https://www.crossmint.com/products/agentic-wallets" },
+    { name: "AgenticTrust / HUMAN Sightline", firm: "HUMAN Security", segment: "fraud", stage: "shipped", started: "Jul 2025", adoption: "Deployed at Confused.com; telemetry shows 81% of agent traffic is search vs 2.4% checkout.", controls: "Behavioral & cryptographic agent classification with per-endpoint merchant policy.", challenge: "Probabilistic bot scoring risks false positives against legitimate user agents.", url: "https://www.humansecurity.com/learn/blog/september-2026-agentic-traffic-triples-meta-muse-debuts-at-no-1/" },
+    { name: "Agentic Commerce Intelligence", firm: "Forter", segment: "fraud", stage: "shipped", started: "2026", adoption: "Reports 6.8× growth in agentic orders across merchant network since mid-Aug 2026.", controls: "Order-level agent risk scoring & OpenAI trusted checkout integration.", challenge: "Network-sample multiplier does not equate to global e-commerce GMV.", url: "https://www.forter.com/blog/openai-trusted-agent-checkout/" },
+    { name: "Agent Identity Risk Intelligence", firm: "Riskified", segment: "fraud", stage: "shipped", started: "Q3 2026", adoption: "Disclosed in Q3 2026 earnings; standalone feature revenue undisclosed.", controls: "Resolves agent sessions to underlying consumer identity for fraud/policy decisions.", challenge: "Risk scores are heuristic, not cryptographic user mandates.", url: "https://ir.riskified.com/news-releases/news-release-details/riskified-reports-strong-third-quarter-2026-accelerating-revenue" },
+    { name: "Web Bot Auth", firm: "Cloudflare / IETF", segment: "identity", stage: "shipped", started: "2025–2026", adoption: "Integrated into ChatGPT Wallet & CDN bot verification pipelines.", controls: "Cryptographically signed HTTP requests with public-key directory verification.", challenge: "Identifies the bot operator, not whether the end user approved a purchase.", url: "https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/" },
+    { name: "Visa × BILL × Billtrust Pilot", firm: "Visa / BILL / Billtrust", segment: "b2b", stage: "pilot", started: "Oct 20, 2026", adoption: "Live B2B pilot between buyer and supplier platforms; pilot GMV undisclosed.", controls: "Buyer pre-approves invoice; agent executes tokenized payment within strict approval bounds.", challenge: "Supplier portal fragmentation; constrained to pre-approved B2B invoices.", url: "https://corporate.visa.com/en/sites/visa-perspectives/press-releases/visa-bill-billtrust-launch-pilot.html" },
+    { name: "PayPal Agentic Commerce", firm: "PayPal", segment: "infrastructure", stage: "limited", started: "2026", adoption: "Gated developer access for approved merchants; volume undisclosed.", controls: "Merchant-integrated discovery, cart assembly, and PayPal checkout.", challenge: "Requires explicit merchant onboarding and access approval.", url: "https://developer.paypal.com/agentic-commerce-services/about/" }
+  ];
+
+  const INCIDENT_RECORDS = [
+    { id: "INC-001", date: "2025-02-07", title: "OpenAI Operator buys eggs without approval", mode: "unauthorized", status: "Observed", isTest: false, amount: "$31.43", meaning: "Unauthorized Instacart card charge during research task", note: "Reporter asked agent only to find delivered eggs; agent completed checkout. OpenAI acknowledged confirmation safeguard failure.", control: "Signed, item-bound checkout confirmation; read-only mode during research.", url: "https://www.washingtonpost.com/technology/2025/02/07/openai-operator-ai-agent-chatgpt/" },
+    { id: "INC-002", date: "2026-09", title: "Instinct cancels DoorDash order without refund", mode: "conditional", status: "Observed", isTest: false, amount: "$64.00", meaning: "Journalist-reported lost order value", note: "User instructed agent to cancel only if refundable; agent executed nonrefundable cancellation anyway.", control: "Query machine-readable refund eligibility from provider API before committing.", url: "https://www.wired.com/story/i-finally-found-an-ai-agent-worth-the-risk/" },
+    { id: "INC-003", date: "2026-09", title: "Instinct cancels flight while investigating terms", mode: "conditional", status: "User-reported", isTest: false, amount: ">$200", meaning: "Claimed travel loss; exact recovery unverified", note: "Published journalism account where an investigation prompt triggered flight cancellation.", control: "Separate read/investigate tools from state-mutating cancel permissions.", url: "https://www.theatlantic.com/technology/2026/09/instinct-ai-personal-assistant-credit-card/688607/" },
+    { id: "INC-004", date: "2026-05-04", title: "Grok-associated Bankrbot transfers 3B DRB", mode: "injection", status: "Observed", isTest: false, amount: "$150K–$200K", meaning: "Estimated gross token transfer (80–88% recovery reported)", note: "Encoded prompt-injection instructions processed via social automation triggered unauthorized wallet transfer.", control: "Isolate untrusted social text from tool calls; enforce recipient allowlists & caps.", url: "https://slowmist.medium.com/behind-the-grok-exploitation-an-analysis-of-ai-agent-permission-chain-abuse-4d832d1bfc73" },
+    { id: "INC-005", date: "2026-09", title: "Instinct triggers Resy account suspension", mode: "automation", status: "Reported", isTest: false, amount: "Account lock", meaning: "Temporary reservation platform restriction", note: "Rapid automated reservation polling triggered anti-abuse suspension.", control: "Use official OAuth APIs, rate limits, and circuit breakers on provider warnings.", url: "https://www.wired.com/story/i-finally-found-an-ai-agent-worth-the-risk/" },
+    { id: "INC-006", date: "2026-02", title: "Priceline Penny incorrect refund promise", mode: "misrepresentation", status: "Reported", isTest: false, amount: "$720.12", meaning: "Refund paid after complaint over chatbot misstatement", note: "Support chatbot erroneously promised refund and accommodation outside policy.", control: "Ground support answers in authoritative reservation policy records.", url: "https://www.bbb.org/us/ct/norwalk/profile/travel-agency/pricelinecom-llc-0111-51000914/complaints?page=120" },
+    { id: "INC-007", date: "2026-09-26", title: "Meta Muse arranges unreviewed marketplace pickup", mode: "unauthorized", status: "Observed", isTest: false, amount: "Address leak", meaning: "Unwanted P2P deal & home address disclosure", note: "Agent accepted marketplace offer and shared pickup address under overly broad permissions.", control: "Require explicit user approval for counterparty, price, and address disclosure.", url: "https://apnews.com/article/449734d41d3750aad7038b761faa49c9" },
+    { id: "INC-008", date: "2025-06", title: "Anthropic Project Vend Phase 1 loses money", mode: "experiment", status: "Controlled experiment", isTest: true, amount: "Operating loss", meaning: "Controlled real-goods retail benchmark", note: "AI shopkeeper granted excessive discounts and sold inventory below cost.", control: "Enforce hard pricing floors and human sign-off on wholesale procurement.", url: "https://www.anthropic.com/research/project-vend-1" },
+    { id: "INC-009", date: "2024-02-14", title: "Air Canada chatbot misstates bereavement fare", mode: "misrepresentation", status: "Adjudicated", isTest: false, amount: "CAD $812.02", meaning: "Civil Resolution Tribunal damages + interest/fees award", note: "Tribunal held airline liable for chatbot's negligent misrepresentation of retroactive fare rules.", control: "Bind customer-facing policy responses to verified policy truth tables.", url: "https://www.canlii.org/en/bc/bccrt/doc/2024/2024bccrt149/2024bccrt149.html" },
+    { id: "INC-010", date: "2025-04-15", title: "Revolut AI gives wrong currency-spend rule", mode: "misrepresentation", status: "Adjudicated", isTest: false, amount: "GBP £30.32", meaning: "Unexpected GBP debit; UK Ombudsman DRN-5687237", note: "Assistant wrongly stated short USD balance would auto-top-up rather than debit full GBP.", control: "Display deterministic funding source directly from live account engine.", url: "https://www.financial-ombudsman.org.uk/decision/DRN-5687237.pdf" },
+    { id: "INC-011", date: "2026-07-30", title: "Amazon AI workflow incurs $1.8M model cost", mode: "overspend", status: "Reported", isTest: false, amount: "$1.80M", meaning: "Internal enterprise AI compute overrun (not consumer loss)", note: "Internal author-matching task ran far above budget without achieving production accuracy.", control: "Service-level token quotas, spend caps, and pre-production cost simulation.", url: "https://ca.finance.yahoo.com/news/amazon-finds-cases-ai-causing-100003650.html" },
+    { id: "INC-012", date: "2026-09", title: "Mandiant: accounting agent $50K API spike", mode: "overspend", status: "Investigated", isTest: false, amount: "~$50,000", meaning: "Recursive loop (>15,000 API calls in <1 hr)", note: "Google Mandiant documented an enterprise reconciliation agent looping rapidly and locking workflows.", control: "Financial circuit breakers, bounded retries, and per-task velocity budgets.", url: "https://cloud.google.com/security/resources/ai-risk-and-resilience-2026" },
+    { id: "INC-013", date: "2026-05-09", title: "DN42 agent reportedly incurs $6,531 AWS bill", mode: "overspend", status: "User-reported", isTest: false, amount: "$6,531.30", meaning: "Claimed cloud infrastructure bill (disputed authenticity)", note: "Community post published logs of autonomous cloud provisioning overrun.", control: "Least-privilege IAM keys, AWS Budgets hard stops, and provisioning approvals.", url: "https://lantian.pub/en/article/fun/ai-agent-bankrupted-their-operator-scan-dn42lantian.lantian/" },
+    { id: "INC-014", date: "2026-02-22", title: "Lobstar Wilde agent sends entire token stash", mode: "unauthorized", status: "Observed", isTest: false, amount: "~$250K notional", meaning: "Sent 5% of memecoin supply (~$40K realized by recipient)", note: "Bot intended a small tip but misformatted decimals and transferred entire holding.", control: "Exact integer minor units, tx simulation, and hard per-transfer caps.", url: "https://www.theblock.co/news/ecosystems/2026-02-22-ai-agent-created-by-openai-dev-accidentally-sends-entire-memecoin-holdings-to-reply-guy-390722" },
+    { id: "INC-015", date: "2026-06", title: "Airbnb support reportedly issues 3x refunds", mode: "conditional", status: "User-reported", isTest: false, amount: "GBP £358.63", meaning: "Host claimed triple refund vs £100 intended", note: "Reddit host account alleging AI support processed duplicate refunds despite stating otherwise.", control: "Idempotency keys and immutable ledger checks on refund endpoints.", url: "https://counterhold.com/incidents/airbnb-ai-support-duplicate-refunds-cancellation" },
+    { id: "INC-016", date: "2026-06", title: "Airbnb support reportedly cancels entire booking", mode: "unauthorized", status: "User-reported", isTest: false, amount: "Booking voided", meaning: "Guest alleged one-word refund query canceled trip", note: "Unverified guest report highlighting risk of conflating policy inquiry with cancellation.", control: "Two-step confirmation separated from policy lookup tools.", url: "https://counterhold.com/incidents/airbnb-ai-support-duplicate-refunds-cancellation" },
+    { id: "INC-017", date: "2026-09-16", title: "United chatbot misstates $200 credit expiration", mode: "misrepresentation", status: "Company-confirmed", isTest: false, amount: "$200", meaning: "Replacement travel certificate issued by United", note: "Chatbot stated 5-year expiration instead of 1 year; airline honored replacement.", control: "Query live expiration timestamp from customer's TravelBank record.", url: "https://counterhold.com/incidents/united-chatbot-travelbank-credit-expiry" },
+    { id: "INC-018", date: "2026-06", title: "BMW Toronto AI quotes higher buyback value", mode: "misrepresentation", status: "Company-confirmed", isTest: false, amount: "CAD ~$7,000", meaning: "Dealer honored CAD 27,162 AI quote over ~20K appraisal", note: "Dealer chatbot echoed loan payoff balance as vehicle buyback valuation.", control: "Pull binding quotes solely from appraisal engine with human sign-off.", url: "https://counterhold.com/incidents/bmw-toronto-chatbot-buyback-offer" },
+    { id: "INC-019", date: "2026-07-08", title: "Who Gives A Crap AI repeats erroneous unit price", mode: "misrepresentation", status: "Company-confirmed", isTest: false, amount: "AUD $69.50", meaning: "Incorrect 24-roll subscription quote; tool suspended", note: "AI echoed human email typo quoting 24 rolls at 48-roll price; company paused agent.", control: "Generate subscription quotes exclusively from structured product catalog.", url: "https://www.smartcompany.com.au/retail/who-gives-a-crap-suspends-ai-agent-email-error-prices-would-double/" },
+    { id: "INC-020", date: "2025-11", title: "WSJ Project Vend Phase 2 gives away inventory", mode: "experiment", status: "Controlled experiment", isTest: true, amount: ">$1,000 deficit", meaning: "Controlled office shop experiment (items later returned)", note: "Journalists social-engineered AI shopkeeper into setting prices to $0 and buying a PlayStation.", control: "Immutable pricing floors and out-of-band procurement approvals.", url: "https://www.anthropic.com/research/project-vend-2" },
+    { id: "INC-021", date: "2024-11-29", title: "Freysa AI game releases $47K prize pool", mode: "experiment", status: "Designed challenge", isTest: true, amount: "$47,316", meaning: "Intentional adversarial smart-contract game", note: "Players persuaded prompt-guarded AI agent to invoke transfer function in public contest.", control: "Enforce treasury invariants in smart-contract code, never system prompts.", url: "https://www.theblock.co/post/328747/human-player-outwits-freysa-ai-agent-in-47000-crypto-challenge" },
+    { id: "INC-022", date: "2025-08-20", title: "Perplexity Comet tricked by spoofed retailer", mode: "security_demo", status: "Security test", isTest: true, amount: "Sandbox test", meaning: "Guardio security demonstration (no real victim loss)", note: "Fake storefront with hidden prompt injection caused browser agent to autofill checkout.", control: "Verify merchant domain reputation & require trusted out-of-band payment confirmation.", url: "https://www.bleepingcomputer.com/news/security/perplexitys-comet-ai-browser-tricked-into-buying-fake-items-online/" },
+    { id: "INC-023", date: "2026-01-30", title: "Researchers manipulate AP2 reference agent", mode: "security_demo", status: "Security test", isTest: true, amount: "Academic test", meaning: "Adversarial ranking & mandate manipulation study", note: "Researchers injected malicious catalog instructions into an AP2 reference shopping agent.", control: "Cryptographically bind user intent mandate to verified merchant SKU & price.", url: "https://arxiv.org/abs/2601.22569" },
+    { id: "INC-024", date: "2026-09-08", title: "Malicious npm MCP package exfiltrates wallet keys", mode: "security_demo", status: "Vulnerability observed", isTest: true, amount: "2,327 downloads", meaning: "Code audit finding (Knostic); no confirmed thefts", note: "<code>gadgethumans-mcp</code> transmitted configured x402 wallet private keys to remote server.", control: "Never pass raw private keys to MCP tools; use hardware/delegated signers.", url: "https://www.knostic.ai/blog/when-auto-signing-sends-your-wallet-private-key-to-a-remote-server-a-malicious-mcp-package-on-npm" },
+    { id: "INC-025", date: "2026-02-05", title: "Snyk finds OpenClaw skill leaking card data", mode: "security_demo", status: "Vulnerability observed", isTest: true, amount: "Skill audit", meaning: "Raw PAN/CVC exposed in LLM context & logs", note: "Public shopping skill passed unencrypted credit card numbers through model prompts.", control: "Use tokenized payment credentials (SPT/Link) so agents never see card numbers.", url: "https://snyk.io/blog/openclaw-skills-credential-leaks-research/" },
+    { id: "INC-026", date: "2026-07-02", title: "Zscaler finds payment-injection web pages", mode: "security_demo", status: "Security test", isTest: true, amount: "4 / 26 models", meaning: "4 of 26 tested models executed mock wallet transfer", note: "Live web pages embedded hidden instructions targeting crypto-enabled browser agents.", control: "Treat all DOM/web content as untrusted data; enforce strict payee allowlists.", url: "https://counterhold.com/incidents/zscaler-poisoned-web-pages-crypto-wallet" }
+  ];
+
+  const HACKATHON_IDEAS = [
+    { id: "firewall", title: "Verifiable Spending-Authority Firewall", track: "Agentic Payments & AI", chain: "Solana or Arc", desc: "User defines exact per-merchant caps, expiry timestamps, and item bounds; deterministic policy verifier blocks out-of-bounds agent transactions before settlement.", evidence: "Addresses 70% consumer override demand (NMI), Mandiant runaway loops, and AP2 mandate verification.", demo: "Live policy config + 1 approved payment + 1 blocked overspend/injection attempt with audit receipt.", score: { speed: 84, demand: 90, institution: 98, distinct: 88 } },
+    { id: "micropay", title: "Metered Pay-Per-Query Research Copilot", track: "Agentic Payments & AI", chain: "Solana or Arc", desc: "Agent queries paid x402/MPP data & inference endpoints under a visible micro-budget, producing cryptographic receipts per query.", evidence: "AI inference represents 80.8% of labeled on-chain agent payment volume.", demo: "End-to-end x402 HTTP 402 payment flow + live spend meter + itemized receipt.", score: { speed: 96, demand: 95, institution: 64, distinct: 62 } },
+    { id: "predrisk", title: "Prediction-Market Liquidity & Spread Guard", track: "DeFi & Onchain Apps", chain: "Solana + Gemini API", desc: "Ingests Gemini Prediction Markets volume/spread data and monitors Solana/Arc wallet exposure via QuickNode Streams to halt trades in thin or news-shocked markets.", evidence: "Gemini sees $43M 30d contract volume; fits Gemini ($2.5K) + QuickNode ($500) + Solana ($1.5K) stack.", demo: "Real Gemini market feed + QuickNode Stream trigger + deterministic trade-block safeguard.", score: { speed: 78, demand: 82, institution: 86, distinct: 92 } },
+    { id: "kya", title: "Know-Your-Agent (KYA) Merchant Gatekeeper", track: "Consumer / Agentic AI", chain: "Solana or Arc", desc: "Merchant endpoint verifies cryptographic agent identity (TAP / ERC-8004 / SATI) and human-signed budget mandate before granting checkout access.", evidence: "Solves merchant bot-blocking conflicts (Amazon vs. Muse/Comet) & 19% merchant readiness gap.", demo: "Verified agent badge + signed mandate check vs. rejected unverified bot.", score: { speed: 72, demand: 76, institution: 93, distinct: 91 } },
+    { id: "receipt", title: "Human-in-the-Loop Checkout & Dispute Vault", track: "Consumer Applications", chain: "Arc or Solana", desc: "Consumer-friendly approval card showing exact merchant, item, refund policy, and total in USDC before signing—storing an immutable dispute receipt.", evidence: "Directly mitigates Air Canada / DoorDash / Operator refund & unauthorized-order failures.", demo: "Mobile-first approval UI + live refund-rule verification + immutable on-chain receipt.", score: { speed: 88, demand: 84, institution: 85, distinct: 74 } },
+    { id: "b2b", title: "Approved-Invoice Treasury Executor", track: "DeFi & Onchain Apps", chain: "Circle Arc", desc: "Enterprise AP agent matches incoming supplier invoices against human-approved purchase orders and settles USDC via Arc/Circle Agent Wallets.", evidence: "Mirrors Visa + BILL + Billtrust live B2B pilot executing strictly buyer-approved invoices.", demo: "Approved PO upload + automated mismatch rejection + USDC settlement receipt.", score: { speed: 75, demand: 80, institution: 96, distinct: 83 } }
+  ];
+
+  const REFERENCE_LIBRARY = [
+    { id: "ref-agentgdp", title: "x402 Payments by Chain — Solana vs. Arc", by: "Agent GDP", kind: "metrics", date: "Nov 17, 2026", url: "https://agentgdp.io/chains", desc: "Same-window 30-day indexed x402 transfers, gross USD, organic screen, and seller addresses.", notes: ["What it measures", "Tracks facilitator-associated x402 stablecoin settlements across chains over a trailing 30-day window. Solana recorded 552,157 transfers ($68,756 gross / $58,174 organic) vs. Arc's 315 transfers ($34.20 gross / $0 organic).", "How to interpret", "Organic screening is provisional and excludes suspected non-economic or self-routed transfers. Zero filtered volume on Arc does not imply zero overall chain activity."] },
+    { id: "ref-visa", title: "Visa Onchain Analytics — Agentic Payments", by: "Visa / Allium", kind: "metrics", date: "Nov 16, 2026", url: "https://visaonchainanalytics.com/agentic-payments", desc: "Cumulative raw ($58.2M) vs. organic adjusted ($34.4M) volume, $0.010 median tx, and 30d category mix.", notes: ["Key takeaway", "Across cumulative x402 and MPP activity, 59.1% ($34.4M) passes Visa's organic adjustment. Within labeled 30-day volume, AI inference accounts for 80.8%.", "Denominator caution", "Unlabeled transactions are excluded from category percentages; wallet counts do not equal verified autonomous agents."] },
+    { id: "ref-x402scan", title: "x402scan — Rolling 30-Day Explorer", by: "x402scan", kind: "metrics", date: "Nov 16, 2026", url: "https://www.x402scan.com/", desc: "Rolling 30-day x402 volume ($1.89M), 5.4M transfers, 33.0K buyer and 15.0K seller addresses.", notes: ["Scope", "Covers x402 protocol transfers specifically over a rolling 30-day window. Implies ~164 transfers per buyer wallet and ~$0.35 mean transfer value."] },
+    { id: "ref-sol-reg", title: "Solana AI Agent Registry Census & x402 Toolkit", by: "Solana Foundation / agent economy", kind: "api", date: "Nov 16–17, 2026", url: "https://agenteconomy.to/stats/how-many-ai-agents-are-on-solana", desc: "3,323 registered accounts across Metaplex (1,748) & SATI (1,575), plus 66M lifetime x402 counter.", notes: ["Registry structure", "Solana supports native agent identity via Metaplex MPL Agent Identity and SATI / 8004-Solana. Programs can overlap, making 3,323 an upper bound on distinct registered accounts."] },
+    { id: "ref-arc-stack", title: "Circle Arc Mainnet & Circle for Agents Stack", by: "Circle", kind: "api", date: "Sep–Nov 2026", url: "https://agents.circle.com/", desc: "Native USDC gas network, programmable Agent Wallets with spend limits, nanopayments, and x402.", notes: ["Capabilities vs. uptake", "Circle ships per-payment and time-window USDC spending controls on Arc. Third-party ChainReport indexes ~421.6K ERC-8004 records on Arc, heavily skewed by batch minting."] },
+    { id: "ref-gemini", title: "Gemini Prediction Markets API & Volume Breakdown", by: "Gemini / DeFi Rate", kind: "api", date: "Nov 15, 2026", url: "https://developer.gemini.com/prediction-markets-spec/volume", desc: "$43M 30-day contract face value (Sports 74.3%, Crypto 21.0%, Politics 4.2%) and REST endpoints.", notes: ["Technical integration", "Gemini trades $1 settlement event contracts on an exchange API (not on-chain Solana programs). Public endpoints expose daily/hourly volume by category path."] },
+    { id: "ref-defillama", title: "DeFiLlama — Solana & Circle Arc Chain Metrics", by: "DeFiLlama", kind: "metrics", date: "Nov 16–17, 2026", url: "https://defillama.com/chain/solana", desc: "Solana ($4.682B TVL, $1.207B 24h DEX) vs. Arc ($605.81M TVL, 99.28% USDC stablecoins, $482.82M lending).", notes: ["Comparing chains", "Solana leads in liquid staking ($4.82B) and spot DEX liquidity; Arc's DeFi TVL is concentrated in USDC lending via Morpho (~$300M) and Aave V4 (~$183M)."] },
+    { id: "ref-wolfers", title: "Interpreting Prediction Market Prices as Probabilities", by: "Justin Wolfers & Eric Zitzewitz", kind: "paper", date: "2006 · NBER WP 12200", url: "https://www.nber.org/papers/w12200", desc: "Foundational economic paper on when binary event-contract prices reflect true crowd probabilities.", notes: ["Core insight", "Binary contract prices approximate mean beliefs under mild risk-aversion assumptions, but thin liquidity, transaction fees, and favorite-longshot bias distort raw prices."] },
+    { id: "ref-sok", title: "SoK: Decentralized Finance (DeFi)", by: "Sam M. Werner et al.", kind: "paper", date: "2022 · arXiv:2101.08778", url: "https://arxiv.org/abs/2101.08778", desc: "Systematization of knowledge covering AMMs, collateralized lending, oracles, and composability risks.", notes: ["Relevance to dashboard", "Explains why liquid staking tokens re-used in lending inflate sector TVL sums above unique chain TVL."] },
+    { id: "ref-boc", title: "DeFi Lending: Returns, Leverage, and Liquidation Risk", by: "Bank of Canada", kind: "paper", date: "Apr 2026 · Staff Paper 2026-13", url: "https://www.bankofcanada.ca/2026/04/staff-analytical-paper-2026-13/", desc: "Loan-level empirical analysis of collateral volatility, leverage loops, and liquidation cascades.", notes: ["Application to Arc & Solana", "Directly informs risk-guardrail designs for lending markets like Morpho and Aave V4 on Arc or Kamino/Marginfi on Solana."] },
+    { id: "ref-ap2", title: "Google AP2 Agent Authorization & IMF Payment Risk Note", by: "Google / IMF", kind: "policy", date: "2026", url: "https://github.com/google-agentic-commerce/AP2/blob/main/docs/ap2/agent_authorization.md", desc: "Cryptographic mandate verification model separating LLM intent from deterministic payment execution.", notes: ["Design principle", "Agents propose carts; deterministic verifiers check signed user mandates (merchant, max amount, expiry) before funds move."] },
+    { id: "ref-devpost", title: "UBC Hackathon 2026 — Official Rules & Prizes", by: "University Blockchain Conference", kind: "policy", date: "Nov 2026", url: "https://ubc-hackathon-2026.devpost.com/rules", desc: "Official track rules, Nov 20 12pm CST deadline, Nov 21 UT Austin finals, and award stacking.", notes: ["Submission checklist", "Teams of 1–4; original code created during event; public GitHub repo + 2–3 min video; in-person presence on Nov 21 required for prizes."] }
+  ];
+
+  /* ==========================================================================
+     2. UTILITIES & ANIMATION HELPERS
+     ========================================================================== */
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function showToast(msg) {
+    const el = $("toastBanner");
+    el.textContent = msg;
+    el.classList.add("visible");
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove("visible"), 2800);
+  }
+
+  function animateValue(el, start, end, duration = 520, prefix = "", suffix = "") {
+    if (!el) return;
+    const startTime = performance.now();
+    function step(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + (end - start) * eased);
+      el.textContent = prefix + current.toLocaleString("en-US") + suffix;
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function downloadCsv(filename, rows) {
+    const csv = rows.map((r) => r.map((v) => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast("Downloaded " + filename);
+  }
+
+  /* ==========================================================================
+     3. NAVIGATION & SLIDING PILL INDICATOR
+     ========================================================================== */
+  const navBar = $("mainNav");
+  const navIndicator = $("navIndicator");
+  const navTabs = Array.from(document.querySelectorAll(".nav-tab"));
+  const viewPanels = Array.from(document.querySelectorAll(".view-panel"));
+
+  function updateNavIndicator(activeBtn) {
+    if (!activeBtn || !navIndicator) return;
+    navIndicator.style.width = activeBtn.offsetWidth + "px";
+    navIndicator.style.transform = "translateX(" + (activeBtn.offsetLeft - 6) + "px)";
+  }
+
+  function switchView(viewId) {
+    const targetBtn = navTabs.find((b) => b.dataset.view === viewId);
+    if (!targetBtn) return;
+
+    navTabs.forEach((b) => {
+      const isMatch = b === targetBtn;
+      b.classList.toggle("active", isMatch);
+      b.setAttribute("aria-selected", String(isMatch));
+    });
+
+    viewPanels.forEach((panel) => {
+      const isMatch = panel.id === viewId;
+      panel.classList.toggle("active", isMatch);
+      if (isMatch) {
+        // Re-trigger staggered animations smoothly
+        panel.querySelectorAll(".anim-card").forEach((card) => {
+          card.style.animation = "none";
+          void card.offsetWidth;
+          card.style.animation = "";
+        });
+      }
+    });
+
+    updateNavIndicator(targetBtn);
+    targetBtn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+
+  navTabs.forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
+  document.querySelectorAll("[data-jump-view]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchView(btn.dataset.jumpView);
+      navBar.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    const activeBtn = navTabs.find((b) => b.classList.contains("active"));
+    updateNavIndicator(activeBtn);
+  });
+
+  /* ==========================================================================
+     4. VIEW 01: TL;DR TOGGLE & PRIZE CALCULATOR
+     ========================================================================== */
+  $("toggleTldrBtn").addEventListener("click", function () {
+    const body = $("tldrBody");
+    const collapsed = body.classList.toggle("collapsed");
+    this.textContent = collapsed ? "Show newcomer guide" : "Hide guide";
+    this.setAttribute("aria-expanded", String(!collapsed));
+  });
+
+  let lastPrizeTotal = 9000;
+  function recalculatePrizes() {
+    const trackNames = {
+      agent: "Main Track: Agentic Payments & AI",
+      defi: "Main Track: DeFi & Onchain Apps",
+      consumer: "Main Track: Consumer Applications"
+    };
+    const chainMap = {
+      sol: ["Best Use of Solana", 1500],
+      arc: ["Best Use of Arc", 1000],
+      none: ["Chain Award (None selected)", 0]
+    };
+
+    const trackLabel = trackNames[$("calcTrack").value];
+    const [chainLabel, chainVal] = chainMap[$("calcChain").value];
+    const overallVal = Number($("calcOverall").value);
+    const geminiVal = Number($("calcGemini").value);
+    const quicknodeVal = $("calcQuicknode").checked ? 500 : 0;
+
+    const lines = [
+      [trackLabel, 2000],
+      [chainLabel, chainVal],
+      ["Overall Competition Placement", overallVal],
+      ["Gemini Prediction Markets Bounty", geminiVal],
+      ["QuickNode Streams Bounty", quicknodeVal]
+    ];
+
+    const total = lines.reduce((acc, [, v]) => acc + v, 0);
+    animateValue($("calcTotalDisplay"), lastPrizeTotal, total, 380, "$", "");
+    lastPrizeTotal = total;
+
+    $("calcBreakdownList").innerHTML = lines.map(([label, amt]) => `
+      <div class="prize-line">
+        <span style="color:${amt > 0 ? "var(--ink-primary)" : "var(--ink-muted)"}">${esc(label)}</span>
+        <strong style="color:${amt > 0 ? "var(--accent-mint)" : "var(--ink-muted)"};font-variant-numeric:tabular-nums">$${amt.toLocaleString("en-US")}</strong>
+      </div>
+    `).join("");
+  }
+
+  ["calcTrack", "calcChain", "calcOverall", "calcGemini", "calcQuicknode"].forEach((id) => {
+    $(id).addEventListener("change", recalculatePrizes);
+  });
+
+  /* ==========================================================================
+     5. VIEW 02: DEMAND CATEGORY BARS
+     ========================================================================== */
+  function renderDemandBars() {
+    $("demandCategoryBars").innerHTML = DEMAND_CATEGORIES.map(([name, pct, bg]) => `
+      <div style="margin-bottom:11px">
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px">
+          <span>${esc(name)}</span>
+          <strong style="font-variant-numeric:tabular-nums">${pct.toFixed(1)}%</strong>
+        </div>
+        <div class="bar-track">
+          <span class="bar-fill" style="width:${pct}%;background:${bg}"></span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  /* ==========================================================================
+     6. VIEW 03: SOLANA VS ARC CHART & DEFI BREAKDOWNS
+     ========================================================================== */
+  const CHAIN_METRICS = {
+    tx: {
+      title: "Indexed x402 Payment Transfers · Trailing 30 Days (Agent GDP)",
+      values: [552157, 315],
+      labels: ["552,157", "315"],
+      note: "Facilitator-indexed x402 transfers over 30 days. Solana processes ~1,753× more tracked transfers than Arc in this dataset."
+    },
+    gross: {
+      title: "Gross Indexed x402 Transfer Value · Trailing 30 Days (Agent GDP)",
+      values: [68756, 34.2],
+      labels: ["$68,756", "$34.20"],
+      note: "Gross USD value across tracked x402 endpoints (excludes broader DeFi/DEX stablecoin transfers)."
+    },
+    organic: {
+      title: "Provisionally Filtered Organic x402 Value · Trailing 30 Days",
+      values: [58174, 0],
+      labels: ["$58,174", "$0"],
+      note: "84.6% of Solana's tracked x402 volume passes the provisional organic screen; Arc's 315 transfers did not pass the screen."
+    },
+    sellers: {
+      title: "Indexed x402 Seller Addresses · Trailing 30 Days",
+      values: [10112, 5],
+      labels: ["10,112", "5"],
+      note: "Unique recipient addresses receiving tracked x402 payments (not verified independent businesses)."
+    },
+    registries: {
+      title: "Cumulative On-Chain Identity Registrations (Different Standards)",
+      values: [3323, 421582],
+      labels: ["3,323", "421,582"],
+      note: "WARNING: Solana counts Metaplex (1,748) + SATI (1,575) accounts; Arc counts ChainReport-indexed ERC-8004 records, heavily inflated by batch minting."
+    }
+  };
+
+  let activeChainMetric = "tx";
+  let activeChainScale = "log";
+
+  function renderChainComparison() {
+    const m = CHAIN_METRICS[activeChainMetric];
+    const maxVal = Math.max(...m.values, 1);
+    const calcPct = (v) => {
+      if (v <= 0) return 0;
+      if (activeChainScale === "log") {
+        return (Math.log10(1 + v) / Math.log10(1 + maxVal)) * 100;
+      }
+      return (v / maxVal) * 100;
+    };
+
+    const chains = [
+      { name: "Solana", val: m.values[0], label: m.labels[0], cls: "" },
+      { name: "Circle Arc", val: m.values[1], label: m.labels[1], cls: "violet" }
+    ];
+
+    $("chainComparisonBars").innerHTML = chains.map((c) => `
+      <div class="comp-row">
+        <strong style="font-size:13px">${c.name}</strong>
+        <div class="comp-track">
+          <span class="bar-fill ${c.cls}" style="width:${calcPct(c.val).toFixed(2)}%;border-radius:4px"></span>
+        </div>
+        <strong style="text-align:right;font-variant-numeric:tabular-nums;font-size:13px">${c.label}</strong>
+      </div>
+    `).join("");
+
+    $("chainComparisonNote").innerHTML = `<b>${esc(m.title)}:</b> ${esc(m.note)} (${activeChainScale === "log" ? "Logarithmic scale preserves visibility across orders of magnitude." : "Linear scale shows raw proportional magnitude."})`;
+  }
+
+  $("chainMetricBtns").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-metric]");
+    if (!btn) return;
+    activeChainMetric = btn.dataset.metric;
+    $("chainMetricBtns").querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderChainComparison();
+  });
+
+  $("chainScaleBtns").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-scale]");
+    if (!btn) return;
+    activeChainScale = btn.dataset.scale;
+    $("chainScaleBtns").querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderChainComparison();
+  });
+
+  function renderMiniBars(targetId, rows, fillClass = "") {
+    const max = Math.max(...rows.map((r) => r[1]), 1);
+    $(targetId).innerHTML = rows.map(([label, num, display]) => `
+      <div style="margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:3px">
+          <span style="color:var(--ink-secondary)">${esc(label)}</span>
+          <strong style="font-variant-numeric:tabular-nums">${esc(display)}</strong>
+        </div>
+        <div class="bar-track" style="height:8px">
+          <span class="bar-fill ${fillClass}" style="width:${((num / max) * 100).toFixed(1)}%"></span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  $("defiFilterBtns").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-eco]");
+    if (!btn) return;
+    const eco = btn.dataset.eco;
+    $("defiFilterBtns").querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll("[data-eco-card]").forEach((card) => {
+      card.style.display = (eco === "all" || card.dataset.ecoCard === eco) ? "" : "none";
+    });
+  });
+
+  /* ==========================================================================
+     7. VIEW 04: SURVEY BARRIERS, PRODUCTS & INCIDENTS EXPLORER
+     ========================================================================== */
+  function renderSurveyBarriers() {
+    $("surveyBarrierBars").innerHTML = SURVEY_BARRIERS.map(([question, pct, source, url]) => `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;margin-bottom:4px">
+          <a class="ext-link" href="${esc(url)}" target="_blank" rel="noopener">${esc(question)} ↗</a>
+          <strong style="font-variant-numeric:tabular-nums">${pct}%</strong>
+        </div>
+        <div class="bar-track">
+          <span class="bar-fill ${pct >= 60 ? "amber" : ""}" style="width:${pct}%"></span>
+        </div>
+        <div style="font-size:10.5px;color:var(--ink-muted);margin-top:2px">${esc(source)}</div>
+      </div>
+    `).join("");
+  }
+
+  const STAGE_LABELS = { shipped: "Shipped", limited: "Limited Access", pilot: "Live Pilot" };
+  const SEG_LABELS = { consumer: "Consumer App", infrastructure: "Payment Rail", identity: "Agent Identity", fraud: "Fraud & Risk", b2b: "B2B Pilot" };
+
+  function renderProducts() {
+    const seg = $("prodCategoryFilter").value;
+    const stg = $("prodStageFilter").value;
+    const q = $("prodSearchInput").value.trim().toLowerCase();
+
+    const filtered = SHIPPED_PRODUCTS.filter((p) =>
+      (seg === "all" || p.segment === seg) &&
+      (stg === "all" || p.stage === stg) &&
+      (!q || [p.name, p.firm, p.adoption, p.controls, p.challenge].join(" ").toLowerCase().includes(q))
+    );
+
+    $("productFilterCount").textContent = `Showing ${filtered.length} of ${SHIPPED_PRODUCTS.length} researched offerings`;
+    $("productsGrid").innerHTML = filtered.map((p) => `
+      <article class="mini-stat-box" style="display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:6px">
+            <span class="badge ${p.stage === "shipped" ? "badge-mint" : p.stage === "limited" ? "badge-amber" : "badge-violet"}">${STAGE_LABELS[p.stage]}</span>
+            <span class="badge">${SEG_LABELS[p.segment]}</span>
+            <span style="font-size:10.5px;color:var(--ink-muted)">${esc(p.started)}</span>
+          </div>
+          <h4 style="margin:2px 0;font-size:15px">${esc(p.name)}</h4>
+          <div style="font-size:11.5px;color:var(--ink-muted);margin-bottom:8px">${esc(p.firm)}</div>
+          <p style="margin:0;font-size:12px;color:var(--ink-secondary)"><strong style="color:var(--accent-mint)">Evidence:</strong> ${esc(p.adoption)}</p>
+          <details class="clean-details">
+            <summary>Controls &amp; limitations</summary>
+            <p style="margin:6px 0 4px;font-size:11.5px;color:var(--ink-secondary)"><b>Controls:</b> ${esc(p.controls)}</p>
+            <p style="margin:0;font-size:11.5px;color:var(--ink-secondary)"><b>Barrier:</b> ${esc(p.challenge)}</p>
+          </details>
+        </div>
+        <div style="margin-top:10px">
+          <a class="ext-link" href="${esc(p.url)}" target="_blank" rel="noopener">Official source ↗</a>
+        </div>
+      </article>
+    `).join("") || `<div style="grid-column:1/-1;font-size:13px;color:var(--ink-muted)">No products match your filter criteria.</div>`;
+  }
+
+  ["prodCategoryFilter", "prodStageFilter"].forEach((id) => $(id).addEventListener("change", renderProducts));
+  $("prodSearchInput").addEventListener("input", renderProducts);
+
+  const MODE_LABELS = {
+    unauthorized: "Unauthorized Execution",
+    conditional: "Failed Preconditions",
+    injection: "Prompt Injection",
+    overspend: "Runaway Resource Cost",
+    misrepresentation: "Wrong Terms / Promises",
+    automation: "Unsafe Automation",
+    experiment: "Controlled Experiment",
+    security_demo: "Security / Key Exposure"
+  };
+
+  function renderIncidents() {
+    const q = $("incSearchInput").value.trim().toLowerCase();
+    const st = $("incStatusFilter").value;
+    const md = $("incModeFilter").value;
+
+    const filtered = INCIDENT_RECORDS.filter((r) =>
+      (st === "all" || (st === "real" && !r.isTest) || (st === "test" && r.isTest)) &&
+      (md === "all" || r.mode === md) &&
+      (!q || [r.id, r.title, r.note, r.amount, r.meaning, r.control].join(" ").toLowerCase().includes(q))
+    );
+
+    $("incidentFilterCount").textContent = `Showing ${filtered.length} of ${INCIDENT_RECORDS.length} sourced records`;
+    $("incidentsGrid").innerHTML = filtered.map((r) => `
+      <article class="mini-stat-box" style="display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:6px">
+            <span class="badge">${esc(r.id)} · ${esc(r.date)}</span>
+            <span class="badge ${r.isTest ? "badge-violet" : "badge-amber"}">${esc(r.status)}</span>
+            <span class="badge badge-blue">${esc(MODE_LABELS[r.mode] || r.mode)}</span>
+          </div>
+          <h4 style="margin:2px 0 6px;font-size:14.5px">${esc(r.title)}</h4>
+          <p style="margin:0 0 8px;font-size:12px;color:var(--ink-secondary)">${esc(r.note)}</p>
+          <div style="padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid var(--border-hairline)">
+            <strong style="font-size:14px;color:var(--accent-amber)">${esc(r.amount)}</strong>
+            <small>${esc(r.meaning)}</small>
+          </div>
+          <details class="clean-details">
+            <summary>Deployable mitigation control</summary>
+            <p style="margin:6px 0 0;font-size:11.5px;color:var(--accent-mint)">${esc(r.control)}</p>
+          </details>
+        </div>
+        <div style="margin-top:10px">
+          <a class="ext-link" href="${esc(r.url)}" target="_blank" rel="noopener">Primary evidence source ↗</a>
+        </div>
+      </article>
+    `).join("") || `<div style="grid-column:1/-1;font-size:13px;color:var(--ink-muted)">No incident records match this filter.</div>`;
+  }
+
+  ["incStatusFilter", "incModeFilter"].forEach((id) => $(id).addEventListener("change", renderIncidents));
+  $("incSearchInput").addEventListener("input", renderIncidents);
+
+  /* ==========================================================================
+     8. VIEW 05: IDEA LAB & REFERENCE LIBRARY READER
+     ========================================================================== */
+  const LENS_NAMES = {
+    speed: "Fast Demo Feasibility",
+    demand: "Observed Market Pull",
+    institution: "Institutional Relevance",
+    distinct: "Novelty & Differentiation"
+  };
+
+  let activeLens = "speed";
+  function renderIdeaLab() {
+    const sorted = [...HACKATHON_IDEAS].sort((a, b) => b.score[activeLens] - a.score[activeLens]);
+    $("ideaLabGrid").innerHTML = sorted.map((idea, idx) => `
+      <article class="card anim-card" style="--stagger:${idx};display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="badge badge-mint">${esc(idea.track)}</span>
+            <span style="font-size:11px;color:var(--ink-muted)">${esc(idea.chain)}</span>
+          </div>
+          <h3 style="margin:0 0 6px;font-size:16.5px">${esc(idea.title)}</h3>
+          <p style="margin:0 0 12px;font-size:12.5px;color:var(--ink-secondary)">${esc(idea.desc)}</p>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-secondary);margin-bottom:4px">
+            <span>${LENS_NAMES[activeLens]}</span>
+            <strong class="c-violet">${idea.score[activeLens]}/100</strong>
+          </div>
+          <div class="bar-track" style="height:8px;margin-bottom:10px">
+            <span class="bar-fill violet" style="width:${idea.score[activeLens]}%"></span>
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-secondary);border-top:1px solid var(--border-hairline);padding-top:8px">
+            <div style="margin-bottom:4px"><b class="c-mint">Evidence:</b> ${esc(idea.evidence)}</div>
+            <div><b class="c-blue">Demo scope:</b> ${esc(idea.demo)}</div>
+          </div>
+        </div>
+      </article>
+    `).join("");
+  }
+
+  $("ideaLensBtns").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-lens]");
+    if (!btn) return;
+    activeLens = btn.dataset.lens;
+    $("ideaLensBtns").querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderIdeaLab();
+  });
+
+  function openReferenceNotes(refId) {
+    const item = REFERENCE_LIBRARY.find((r) => r.id === refId);
+    if (!item) return;
+    $("readerTitle").textContent = item.title;
+    $("readerMeta").textContent = `${item.by} · ${item.date} · Category: ${item.kind.toUpperCase()}`;
+    $("readerExtBtn").href = item.url;
+
+    const html = [];
+    for (let i = 0; i < item.notes.length; i += 2) {
+      html.push(`<h4>${esc(item.notes[i])}</h4><p>${esc(item.notes[i + 1] || "")}</p>`);
+    }
+    $("readerBody").innerHTML = html.join("");
+    $("readingRoomPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function renderReferenceLibrary() {
+    const q = $("refSearchInput").value.trim().toLowerCase();
+    const kind = $("refKindFilter").value;
+
+    const filtered = REFERENCE_LIBRARY.filter((r) =>
+      (kind === "all" || r.kind === kind) &&
+      (!q || [r.title, r.by, r.desc, r.date, r.kind].join(" ").toLowerCase().includes(q))
+    );
+
+    $("refFilterCount").textContent = `Showing ${filtered.length} of ${REFERENCE_LIBRARY.length} primary references`;
+    $("referenceCardsGrid").innerHTML = filtered.map((r) => `
+      <article class="mini-stat-box" style="display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px">
+            <span class="badge badge-blue">${esc(r.kind)}</span>
+            <span style="font-size:10.5px;color:var(--ink-muted)">${esc(r.date)}</span>
+          </div>
+          <h4 style="margin:2px 0 4px;font-size:14.5px">${esc(r.title)}</h4>
+          <div style="font-size:11px;color:var(--ink-muted);margin-bottom:6px">${esc(r.by)}</div>
+          <p style="margin:0;font-size:12px;color:var(--ink-secondary)">${esc(r.desc)}</p>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" type="button" data-read-ref="${esc(r.id)}">Read study notes</button>
+          <a class="btn" href="${esc(r.url)}" target="_blank" rel="noopener">Original ↗</a>
+        </div>
+      </article>
+    `).join("") || `<div style="grid-column:1/-1;font-size:13px;color:var(--ink-muted)">No references match your search.</div>`;
+  }
+
+  $("referenceCardsGrid").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-read-ref]");
+    if (btn) openReferenceNotes(btn.dataset.readRef);
+  });
+  $("refSearchInput").addEventListener("input", renderReferenceLibrary);
+  $("refKindFilter").addEventListener("change", renderReferenceLibrary);
+
+  /* ==========================================================================
+     9. CSV EXPORT HANDLERS
+     ========================================================================== */
+  const exportSolanaArcCsv = () => downloadCsv("agent_adoption_solana_arc_v8.csv", CHAIN_ADOPTION_CSV_ROWS);
+  $("exportChainCsvBtn").addEventListener("click", exportSolanaArcCsv);
+  $("exportChainCsvBtnInline").addEventListener("click", exportSolanaArcCsv);
+
+  $("exportGlobalCsvBtn").addEventListener("click", () => {
+    const rows = [
+      ["dataset", "metric", "value", "unit", "window", "source_url"],
+      ["x402scan", "volume", "1890000", "USD", "rolling 30 days", "https://www.x402scan.com/"],
+      ["x402scan", "transfers", "5400000", "transfers", "rolling 30 days", "https://www.x402scan.com/"],
+      ["Visa Onchain", "raw_volume", "58200000", "USD", "cumulative", "https://visaonchainanalytics.com/agentic-payments"],
+      ["Visa Onchain", "organic_volume", "34400000", "USD", "cumulative", "https://visaonchainanalytics.com/agentic-payments"],
+      ["Visa Onchain", "median_tx", "0.010", "USD", "cumulative", "https://visaonchainanalytics.com/agentic-payments"],
+      ...DEMAND_CATEGORIES.map(([cat, pct]) => ["Visa Category", cat, pct, "percent labeled volume", "30 days", "https://visaonchainanalytics.com/agentic-payments"])
+    ];
+    downloadCsv("ubc_2026_agent_economy_snapshot.csv", rows);
+  });
+
+  $("exportProductsCsvBtn").addEventListener("click", () => {
+    const rows = [
+      ["name", "firm", "category", "stage", "started", "adoption_evidence", "controls", "barriers", "source_url"],
+      ...SHIPPED_PRODUCTS.map((p) => [p.name, p.firm, p.segment, p.stage, p.started, p.adoption, p.controls, p.challenge, p.url])
+    ];
+    downloadCsv("agentic_commerce_products_2026.csv", rows);
+  });
+
+  $("exportIncidentsCsvBtn").addEventListener("click", () => {
+    const rows = [
+      ["id", "date", "title", "mode", "status", "amount", "meaning", "control", "source_url"],
+      ...INCIDENT_RECORDS.map((r) => [r.id, r.date, r.title, r.mode, r.status, r.amount, r.meaning, r.control, r.url])
+    ];
+    downloadCsv("agentic_payment_incidents_2026.csv", rows);
+  });
+
+  /* ==========================================================================
+     10. INITIALIZE ALL COMPONENTS ON LOAD
+     ========================================================================== */
+  function initDashboard() {
+    recalculatePrizes();
+    renderDemandBars();
+    renderChainComparison();
+    renderMiniBars("geminiBars", DEFI_BREAKDOWNS.gemini, "");
+    renderMiniBars("solanaDefiBars", DEFI_BREAKDOWNS.solana, "");
+    renderMiniBars("arcDefiBars", DEFI_BREAKDOWNS.arc, "violet");
+    renderSurveyBarriers();
+    renderProducts();
+    renderIncidents();
+    renderIdeaLab();
+    renderReferenceLibrary();
+    openReferenceNotes("ref-agentgdp");
+
+    // Position sliding nav pill once layout settles
+    requestAnimationFrame(() => updateNavIndicator(navTabs[0]));
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboard);
+  } else {
+    initDashboard();
+  }
+})();
+</script>
+</body>
+</html>
